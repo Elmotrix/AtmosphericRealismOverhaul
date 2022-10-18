@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using BepInEx;
 using HarmonyLib;
 using UnityEngine;
 using Assets.Scripts.Objects.Pipes;
@@ -15,83 +14,25 @@ using static Assets.Scripts.Atmospherics.Chemistry;
 using Objects.Pipes;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects;
+using JetBrains.Annotations;
 
 namespace AtmosphericRealismOverhaul
 {
-    [BepInPlugin("elmotrix.stationeers.aro", "Atmospheric Realism Overhaul", "1.0.0.0")]
-    public class aroMod : BaseUnityPlugin
-    {
-        //const float R = 8.3144f;
-        public const string pluginGuid = "elmotrix.stationeers.aro";
-        public void Awake()
-        {
-            Harmony harmony = new Harmony(pluginGuid);
-            MethodInfo original = AccessTools.Method(typeof(PressureRegulator), nameof(PressureRegulator.OnAtmosphericTick));
-            MethodInfo patch = AccessTools.Method(typeof(RegulatorPatch), nameof(RegulatorPatch.OnAtmosphericTickPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
+    //[BepInPlugin("elmotrix.stationeers.aro", "Atmospheric Realism Overhaul", "1.0.0.0")]
+    //public class aroMod : BaseUnityPlugin
+    //{
+    //    //const float R = 8.3144f;
+    //    public const string pluginGuid = "elmotrix.stationeers.aro";
+    //    public void Awake()
+    //    {
 
-
-            original = AccessTools.Method(typeof(VolumePump), nameof(VolumePump.MoveAtmosphere));
-            patch = AccessTools.Method(typeof(VolumePumpPatch), nameof(VolumePumpPatch.MoveAtmospherePatch));
-            harmony.Patch(original, new HarmonyMethod(patch));
-            original = AccessTools.Method(typeof(VolumePump), nameof(VolumePump.GetUsedPower));
-            patch = AccessTools.Method(typeof(VolumePumpPatch), nameof(VolumePumpPatch.GetUsedPowerPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(AdvancedFurnace), nameof(AdvancedFurnace.HandleGasInput));
-            patch = AccessTools.Method(typeof(AdvancedFurnacePatch), nameof(AdvancedFurnacePatch.HandleGasInputPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-            original = AccessTools.Method(typeof(AdvancedFurnace), nameof(AdvancedFurnace.GetUsedPower));
-            patch = AccessTools.Method(typeof(AdvancedFurnacePatch), nameof(AdvancedFurnacePatch.GetUsedPowerPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(DeviceAtmospherics), nameof(DeviceAtmospherics.MoveToEqualize),
-                new Type[] {typeof(Atmosphere), typeof(Atmosphere) , typeof(float) , typeof(Atmosphere.MatterState) });
-            patch = AccessTools.Method(typeof(DeviceAtmosphericsPatch), nameof(DeviceAtmosphericsPatch.MoveToEqualizePrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(DeviceAtmospherics), nameof(DeviceAtmospherics.MoveToEqualizeBidirectional));
-            patch = AccessTools.Method(typeof(DeviceAtmosphericsPatch), nameof(DeviceAtmosphericsPatch.MoveToEqualizeBidirectionalPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(ActiveVent), nameof(ActiveVent.OnAtmosphericTick));
-            patch = AccessTools.Method(typeof(ActiveVentPatch), nameof(ActiveVentPatch.OnAtmosphericTickPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(Valve), nameof(Valve.OnAtmosphericTick));
-            patch = AccessTools.Method(typeof(ValvePatch), nameof(ValvePatch.OnAtmosphericTickPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(Mixer), nameof(Mixer.OnAtmosphericTick));
-            patch = AccessTools.Method(typeof(MixerPatch), nameof(MixerPatch.OnAtmosphericTickPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(FiltrationMachine), nameof(FiltrationMachine.OnAtmosphericTick));
-            patch = AccessTools.Method(typeof(FiltrationMachinePatch), nameof(FiltrationMachinePatch.OnAtmosphericTickPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(PowerGeneratorPipe), nameof(PowerGeneratorPipe.GetGeneratedPower));
-            patch = AccessTools.Method(typeof(PowerGeneratorPipePatch), nameof(PowerGeneratorPipePatch.GetGeneratedPowerPostFix));
-            harmony.Patch(original,null, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(PowerGeneratorPipe), nameof(PowerGeneratorPipe.OnAtmosphericTick));
-            patch = AccessTools.Method(typeof(PowerGeneratorPipePatch), nameof(PowerGeneratorPipePatch.OnAtmosphericTickPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(AirConditioner), nameof(AirConditioner.OnAtmosphericTick));
-            patch = AccessTools.Method(typeof(AirConditionerPatch), nameof(AirConditionerPatch.OnAtmosphericTickPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-            original = AccessTools.Method(typeof(H2CombustorMachine), nameof(H2CombustorMachine.OnAtmosphericTick));
-            patch = AccessTools.Method(typeof(H2CombustorMachinePatch), nameof(H2CombustorMachinePatch.OnAtmosphericTickPrefix));
-            harmony.Patch(original, new HarmonyMethod(patch));
-
-        }
-    }
-    //[HarmonyPatch(typeof(PressureRegulator), nameof(PressureRegulator.OnAtmosphericTick))]
+    //    }
+    //}
+    [HarmonyPatch(typeof(PressureRegulator), nameof(PressureRegulator.OnAtmosphericTick))]
     public class RegulatorPatch
     {
-        public static bool OnAtmosphericTickPrefix(PressureRegulator __instance)
+        [UsedImplicitly]
+        public static bool Prefix(PressureRegulator __instance)
         {
             __instance.UsedPower = 10;
             
@@ -117,40 +58,11 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
-    public class VolumePumpPatch
+    [HarmonyPatch(typeof(VolumePump), nameof(VolumePump.GetUsedPower))]
+    public class VolumePumpPowerPatch
     {
-        public static bool GetUsedPowerPrefix(DeviceAtmospherics __instance, CableNetwork cableNetwork, ref float __result)
-        {
-            if (__instance.PowerCable == null || __instance.PowerCable.CableNetwork != cableNetwork)
-            {
-                __result =  - 1f;
-            }
-            else if (!__instance.OnOff)
-            {
-                __result =  0f;
-            }
-            else
-            {
-                __result = __instance.UsedPower;
-            }
-            return false;
-        }
-
-        public static bool MoveAtmospherePatch(Atmosphere inputAtmosphere, Atmosphere outputAtmosphere, VolumePump __instance)
-        {
-            float setting = __instance.OutputSetting;
-            if (setting <= 0f)
-            {
-                __instance.UsedPower = 0f;
-                return false;
-            }
-            __instance.UsedPower = Mathf.Max(AroMath.CompressVolume(inputAtmosphere, outputAtmosphere, setting, Atmosphere.MatterState.All), setting) * AroMath.CompressEnergyPowerFactor;
-            return false;
-        }
-    }
-    public class AdvancedFurnacePatch
-    {
-        public static bool GetUsedPowerPrefix(DeviceAtmospherics __instance, CableNetwork cableNetwork, ref float __result)
+        [UsedImplicitly]
+        public static bool Prefix(DeviceAtmospherics __instance, CableNetwork cableNetwork, ref float __result)
         {
             if (__instance.PowerCable == null || __instance.PowerCable.CableNetwork != cableNetwork)
             {
@@ -166,7 +78,50 @@ namespace AtmosphericRealismOverhaul
             }
             return false;
         }
-        public static bool HandleGasInputPrefix(AdvancedFurnace __instance)
+    }
+    [HarmonyPatch(typeof(VolumePump), nameof(VolumePump.MoveAtmosphere))]
+    public class VolumePumpAtmospherePatch
+    {
+        [UsedImplicitly]
+        public static bool Prefix(Atmosphere inputAtmosphere, Atmosphere outputAtmosphere, VolumePump __instance)
+        {
+            float setting = __instance.OutputSetting;
+            if (setting <= 0f)
+            {
+                __instance.UsedPower = 0f;
+                return false;
+            }
+            __instance.UsedPower = Mathf.Max(AroMath.CompressVolume(inputAtmosphere, outputAtmosphere, setting, Atmosphere.MatterState.All), setting) * AroMath.CompressEnergyPowerFactor;
+            return false;
+        }
+    }
+    [HarmonyPatch(typeof(AdvancedFurnace), nameof(AdvancedFurnace.GetUsedPower))]
+    public class AdvancedFurnacePowerPatch
+    {
+        [UsedImplicitly]
+        public static bool Prefix(DeviceAtmospherics __instance, CableNetwork cableNetwork, ref float __result)
+        {
+            if (__instance.PowerCable == null || __instance.PowerCable.CableNetwork != cableNetwork)
+            {
+                __result = -1f;
+            }
+            else if (!__instance.OnOff)
+            {
+                __result = 0f;
+            }
+            else
+            {
+                __result = __instance.UsedPower;
+            }
+            return false;
+        }
+
+    }
+    [HarmonyPatch(typeof(AdvancedFurnace), nameof(AdvancedFurnace.HandleGasInput))]
+    public class AdvancedFurnaceAtmospherePatch
+    {
+        [UsedImplicitly]
+        public static bool Prefix(AdvancedFurnace __instance)
         {
             float energy = 0;
             float num;
@@ -192,11 +147,12 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
-    public class DeviceAtmosphericsPatch
+    [HarmonyPatch(typeof(DeviceAtmospherics), nameof(DeviceAtmospherics.MoveVolume), new Type[] {typeof(Atmosphere), typeof(Atmosphere), typeof(float), typeof(Atmosphere.MatterState) })]
+    public class DeviceAtmosphericsMoveVolumePatch
     {
-        public static bool MoveVolumePrefix(Atmosphere inputAtmos, Atmosphere outputAtmos, float setting, Atmosphere.MatterState matterStateToMove)
+        [UsedImplicitly]
+        public static bool Prefix(Atmosphere inputAtmos, Atmosphere outputAtmos, float setting, Atmosphere.MatterState matterStateToMove)
         {
-            //unused
             if (inputAtmos.PressureGassesAndLiquids < 0.001f && outputAtmos == null)
             {
                 inputAtmos.GasMixture.Reset();
@@ -205,7 +161,12 @@ namespace AtmosphericRealismOverhaul
             AroMath.CompressVolume(inputAtmos, outputAtmos, setting, Atmosphere.MatterState.All);
             return false;
         }
-        public static bool MoveToEqualizePrefix(Atmosphere inputAtmos, Atmosphere outputAtmos, float desiredPressureChange, Atmosphere.MatterState typeToMove)
+    }
+    [HarmonyPatch(typeof(DeviceAtmospherics), nameof(DeviceAtmospherics.MoveToEqualize), new Type[] {typeof(Atmosphere), typeof(Atmosphere), typeof(float), typeof(Atmosphere.MatterState)} )]
+    public class DeviceAtmosphericsEqualizePatch
+    {
+        [UsedImplicitly]
+        public static bool Prefix(Atmosphere inputAtmos, Atmosphere outputAtmos, float desiredPressureChange, Atmosphere.MatterState typeToMove)
         {
             if (inputAtmos == null || outputAtmos == null)
             {
@@ -214,15 +175,22 @@ namespace AtmosphericRealismOverhaul
             AroMath.Equalize(inputAtmos, outputAtmos, desiredPressureChange, 1f, 0f, typeToMove);
             return false;
         }
-        public static bool MoveToEqualizeBidirectionalPrefix(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove, Atmosphere.MatterState typeToMove)
+    }
+    [HarmonyPatch(typeof(DeviceAtmospherics), nameof(DeviceAtmospherics.MoveToEqualizeBidirectional))]
+    public class DeviceAtmosphericsBidirectionalPatch
+    {
+        [UsedImplicitly]
+        public static bool Prefix(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove, Atmosphere.MatterState typeToMove)
         {
             AroMath.BiDirectional(inputAtmos, outputAtmos, amountPressureToMove, 0.8f , typeToMove);
             return false;
         }
     }
+    [HarmonyPatch(typeof(ActiveVent), nameof(ActiveVent.OnAtmosphericTick))]
     public class ActiveVentPatch
     {
-        public static bool OnAtmosphericTickPrefix(ActiveVent __instance)
+        [UsedImplicitly]
+        public static bool Prefix(ActiveVent __instance)
         {
             if (!__instance.OnOff || !__instance.Powered || !__instance.IsOperable)
             {
@@ -252,9 +220,11 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
+    [HarmonyPatch(typeof(Valve), nameof(Valve.OnAtmosphericTick))]
     public class ValvePatch
     {
-        public static bool OnAtmosphericTickPrefix(Valve __instance)
+        [UsedImplicitly]
+        public static bool Prefix(Valve __instance)
         {
 
             if (!__instance.OnOff || __instance.Error == 1 || (__instance.HasPowerState && !__instance.Powered))
@@ -271,10 +241,11 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
-
+    [HarmonyPatch(typeof(Mixer), nameof(Mixer.OnAtmosphericTick))]
     public class MixerPatch
     {
-        public static bool OnAtmosphericTickPrefix(Mixer __instance)
+        [UsedImplicitly]
+        public static bool Prefix(Mixer __instance)
         {
             __instance.UsedPower = 10f;
             if (__instance.InputNetwork == null || __instance.InputNetwork2 == null || __instance.OutputNetwork == null)
@@ -308,9 +279,11 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
+    [HarmonyPatch(typeof(FiltrationMachine), nameof(FiltrationMachine.OnAtmosphericTick))]
     public class FiltrationMachinePatch
     {
-        public static bool OnAtmosphericTickPrefix(FiltrationMachine __instance)
+        [UsedImplicitly]
+        public static bool Prefix(FiltrationMachine __instance)
         {
             if (!__instance.OnOff || !__instance.Powered || __instance.Mode == 0 || !__instance.IsOperable)
             {
@@ -340,9 +313,11 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
-    public class PowerGeneratorPipePatch
+    [HarmonyPatch(typeof(PowerGeneratorPipe), nameof(PowerGeneratorPipe.GetGeneratedPower))]
+    public class PowerGeneratorPipeAtmospherePatch
     {
-        public static void GetGeneratedPowerPostFix(PowerGeneratorPipe __instance,ref float __result)
+        [UsedImplicitly]
+        public static void Postfix(PowerGeneratorPipe __instance,ref float __result)
         {
             if (!__instance.OnOff || __instance.InputNetwork == null || __instance.OutputNetwork == null)
             {
@@ -357,8 +332,12 @@ namespace AtmosphericRealismOverhaul
                 __result = 0;
             }
         }
-
-        public static void OnAtmosphericTickPrefix(PowerGeneratorPipe __instance)
+    }
+    [HarmonyPatch(typeof(PowerGeneratorPipe), nameof(PowerGeneratorPipe.OnAtmosphericTick))]
+    public class PowerGeneratorPipePowerPatch
+    {
+        [UsedImplicitly]
+        public static void Prefix(PowerGeneratorPipe __instance)
         {
             if (!__instance.OnOff || __instance.InputNetwork == null || __instance.OutputNetwork == null)
             {
@@ -366,7 +345,8 @@ namespace AtmosphericRealismOverhaul
             }
             __instance.PressurePerTick = __instance.InputNetwork.Atmosphere.PressureGasses;
         }
-        public static void OnAtmosphericTickPostfix(PowerGeneratorPipe __instance)
+        [UsedImplicitly]
+        public static void Postfix(PowerGeneratorPipe __instance)
         {
             if (!__instance.OnOff)
             {
@@ -380,9 +360,11 @@ namespace AtmosphericRealismOverhaul
             }
         }
     }
+    [HarmonyPatch(typeof(AirConditioner), nameof(AirConditioner.OnAtmosphericTick))]
     public class AirConditionerPatch
     {
-        public static bool OnAtmosphericTickPrefix(AirConditioner __instance, ref float ____powerUsedDuringTick)
+        [UsedImplicitly]
+        public static bool Prefix(AirConditioner __instance, ref float ____powerUsedDuringTick)
         {
             ____powerUsedDuringTick = 0f;
             if (!__instance.OnOff || !__instance.Powered || __instance.Mode == 0 || !__instance.IsFullyConnected )
@@ -429,10 +411,11 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
-
+    [HarmonyPatch(typeof(H2CombustorMachine), nameof(H2CombustorMachine.OnAtmosphericTick))]
     public class H2CombustorMachinePatch
     {
-        public static bool OnAtmosphericTickPrefix(H2CombustorMachine __instance)
+        [UsedImplicitly]
+        public static bool Prefix(H2CombustorMachine __instance)
         {
             if (!__instance.OnOff || !__instance.Powered || !__instance.IsOperable || __instance.Mode != 1)
             {
