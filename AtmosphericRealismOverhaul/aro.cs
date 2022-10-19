@@ -15,6 +15,7 @@ using Objects.Pipes;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects;
 using JetBrains.Annotations;
+using Assets.Scripts;
 
 namespace AtmosphericRealismOverhaul
 {
@@ -196,7 +197,8 @@ namespace AtmosphericRealismOverhaul
             {
                 return false;
             }
-            Atmosphere worldAtmosphere = __instance.AtmosphericsController.CloneGlobalAtmosphere(__instance.WorldGrid, 0L);
+            //Atmosphere worldAtmosphere = __instance.AtmosphericsController.GetAtmosphereLocal(__instance.WorldGrid);
+            Atmosphere worldAtmosphere = __instance.GridController.AtmosphericsController.CloneGlobalAtmosphere(__instance.WorldGrid);
             Atmosphere pipeAtmosphere = __instance.ConnectedPipeNetwork.Atmosphere;
             switch (__instance.VentDirection)
             {
@@ -366,6 +368,7 @@ namespace AtmosphericRealismOverhaul
         [UsedImplicitly]
         public static bool Prefix(AirConditioner __instance, ref float ____powerUsedDuringTick)
         {
+            __instance.ThermodynamicsScale = 0f;
             ____powerUsedDuringTick = 0f;
             if (!__instance.OnOff || !__instance.Powered || __instance.Mode == 0 || !__instance.IsFullyConnected )
             {
@@ -375,7 +378,6 @@ namespace AtmosphericRealismOverhaul
             Atmosphere output = __instance.OutputNetwork.Atmosphere;
             Atmosphere waste = __instance.OutputNetwork2.Atmosphere;
             Atmosphere internalAtmos = __instance.InternalAtmosphere;
-            AroMath.Equalize(internalAtmos, output, float.MaxValue, 1f, 0f,Atmosphere.MatterState.All);
             AroMath.Equalize(input, internalAtmos, float.MaxValue, 1f, 0f, Atmosphere.MatterState.All);
             float energy = AroMath.GetEnergyToTarget(internalAtmos, __instance.GoalTemperature);
 
@@ -408,6 +410,7 @@ namespace AtmosphericRealismOverhaul
             __instance.TemperatureDifferentialEfficiency = tde;
             __instance.OperationalTemperatureLimitor = iwe;
             __instance.OptimalPressureScalar = pe;
+            AroMath.Equalize(internalAtmos, output, float.MaxValue, 1f, 0f, Atmosphere.MatterState.All);
             return false;
         }
     }
