@@ -36,7 +36,7 @@ namespace AtmosphericRealismOverhaul
         public static bool Prefix(PressureRegulator __instance)
         {
             __instance.UsedPower = 10;
-            
+            __instance.MaxSetting = 60000;
             if (!__instance.OnOff || !__instance.Powered || __instance.InputNetwork == null || __instance.OutputNetwork == null)
             {
                 return false;
@@ -67,15 +67,15 @@ namespace AtmosphericRealismOverhaul
         {
             if (__instance.PowerCable == null || __instance.PowerCable.CableNetwork != cableNetwork)
             {
-                return true;
+                __result = -1f;
             }
             else if (!__instance.OnOff)
             {
-                return true;
+                __result = 0f;
             }
             else if (__instance.OutputSetting <= 0f)
             {
-                return true;
+                __result = __instance.UsedPower;
             }
             else
             {
@@ -93,10 +93,11 @@ namespace AtmosphericRealismOverhaul
             float setting = __instance.OutputSetting;
             if (setting <= 0f)
             {
-                __instance.UsedPower = 0f;
+                __instance.UsedPower = 10f;
                 return false;
             }
-            __instance.UsedPower = Mathf.Max(AroMath.CompressVolume(inputAtmosphere, outputAtmosphere, setting, Atmosphere.MatterState.All), setting) * AroMath.CompressEnergyPowerFactor;
+            float num = Mathf.Max(AroMath.CompressVolume(inputAtmosphere, outputAtmosphere, setting, Atmosphere.MatterState.All), setting) * AroMath.CompressEnergyPowerFactor;
+            __instance.UsedPower = num + 10f;
             return false;
         }
     }
@@ -148,7 +149,7 @@ namespace AtmosphericRealismOverhaul
                     energy += Mathf.Max(num, __instance.OutputSetting);
                 }
             }
-            __instance.UsedPower = energy * AroMath.CompressEnergyPowerFactor;
+            __instance.UsedPower = energy * AroMath.CompressEnergyPowerFactor+10f;
             return false;
         }
     }
@@ -308,7 +309,7 @@ namespace AtmosphericRealismOverhaul
             {
                 float g = gasFilter.Quantity;
                 n = gasFilter.FilterGas(ref fromMix, ref outputAtmos1.GasMixture, inputAtmos1, AroMath.MinimumRatioToFilterAll);
-                gasFilter.Quantity = g - 0.01f * n / (int)gasFilter.TicksBeforeDegrade;
+                gasFilter.Quantity = g - 0.5f * n / (int)gasFilter.TicksBeforeDegrade;
                 energy = AroMath.CalcEnergyGasCompression(inputAtmos1, outputAtmos1, n);
                 AroMath.AlterEnergy(ref outputAtmos1.GasMixture, energy);
             }
@@ -351,8 +352,6 @@ namespace AtmosphericRealismOverhaul
             float energy = AroMath.CalcEnergyGasCompression(__instance.InternalAtmosphere, __instance.OutputNetwork.Atmosphere, __instance.InternalAtmosphere.TotalMoles);
             AroMath.AlterEnergy(ref __instance.OutputNetwork.Atmosphere.GasMixture, energy);
             energy = Mathf.Max(energy * AroMath.CompressEnergyPowerFactor, 0f);
-            AroMath.debug3 = energy;
-            AroMath.debug = ____energyAsPower;
             if (____energyAsPower >= energy)
             {
                 ____energyAsPower = ____energyAsPower - energy;
@@ -362,7 +361,6 @@ namespace AtmosphericRealismOverhaul
                 OnServer.Interact(__instance.InteractOnOff, 0);
                 ____energyAsPower = 0f;
             }
-            AroMath.debug2 = ____energyAsPower;
         }
     }
     [HarmonyPatch(typeof(PowerGeneratorPipe), nameof(PowerGeneratorPipe.OnThreadUpdate))]
@@ -399,8 +397,8 @@ namespace AtmosphericRealismOverhaul
             float iwe = Mathf.Min(__instance.InputAndWasteEfficiency.Evaluate(internalAtmos.GasMixture.Temperature), __instance.InputAndWasteEfficiency.Evaluate(waste.GasMixture.Temperature));
             float tde = internalAtmos.Temperature / waste.Temperature;
             tde = (__instance.GoalTemperature > internalAtmos.Temperature) ? 1f / tde : tde; // heating?
-            energy = energy * Mathf.Clamp01(pe * iwe * tde);
-            ____powerUsedDuringTick = Mathf.Abs(energy) * AroMath.CompressEnergyPowerFactor / tde;
+            //energy = energy * Mathf.Clamp01(pe * iwe * tde);
+            ____powerUsedDuringTick = Mathf.Abs(energy) * AroMath.CompressEnergyPowerFactor / Mathf.Max(pe * iwe * tde, 0.000001f);
             AroMath.AlterEnergy(ref waste.GasMixture, -energy);
             AroMath.AlterEnergy(ref internalAtmos.GasMixture, energy);
             __instance.TemperatureDifferentialEfficiency = tde;
@@ -444,7 +442,7 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
-    [HarmonyPatch(typeof(AtmosAnalyser), nameof(AtmosAnalyser.OnPreScreenUpdate))]
+    //[HarmonyPatch(typeof(AtmosAnalyser), nameof(AtmosAnalyser.OnPreScreenUpdate))]
     public class AtmosAnalyserOnPreScreenUpdate
     {
         [UsedImplicitly]
@@ -469,7 +467,7 @@ namespace AtmosphericRealismOverhaul
         public static float debug3;
         public static float GetEnergyToTarget(Atmosphere inputAtmos , float targetTemperature)
         {
-            return (targetTemperature - inputAtmos.Temperature) * inputAtmos.GasMixture.HeatCapacity; //  inputAtmos.TotalMoles *
+            return (targetTemperature - inputAtmos.Temperature) * inputAtmos.GasMixture.HeatCapacity;
         }
         public static float GetEnergyToEqualize(Atmosphere inputAtmos, Atmosphere outputAtmos)
         {
