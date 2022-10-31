@@ -20,16 +20,6 @@ using static Assets.Scripts.Atmospherics.Atmosphere;
 
 namespace AtmosphericRealismOverhaul
 {
-    //[BepInPlugin("elmotrix.stationeers.aro", "Atmospheric Realism Overhaul", "1.0.0.0")]
-    //public class aroMod : BaseUnityPlugin
-    //{
-    //    //const float R = 8.3144f;
-    //    public const string pluginGuid = "elmotrix.stationeers.aro";
-    //    public void Awake()
-    //    {
-
-    //    }
-    //}
     [HarmonyPatch(typeof(PressureRegulator), nameof(PressureRegulator.OnAtmosphericTick))]
     public class RegulatorPatch
     {
@@ -165,7 +155,7 @@ namespace AtmosphericRealismOverhaul
                 inputAtmos.GasMixture.Reset();
                 return false;
             }
-            AroMath.CompressVolume(inputAtmos, outputAtmos, setting, MatterState.All);
+            AroMath.CompressVolume(inputAtmos, outputAtmos, setting, matterStateToMove);
             return false;
         }
     }
@@ -388,16 +378,25 @@ namespace AtmosphericRealismOverhaul
         }
 
     }
+    [HarmonyPatch(typeof(AirConditioner), nameof(AirConditioner.ReceivePower))]
+    public class AirConditionerReceivePowerPatch
+    {
+        [UsedImplicitly]
+        public static bool Prefix(float powerAdded, ref float ____powerUsedDuringTick)
+        {
+            ____powerUsedDuringTick = Mathf.Max(____powerUsedDuringTick - powerAdded, 0f);
+            return false;
+        }
+    }
     [HarmonyPatch(typeof(AirConditioner), nameof(AirConditioner.OnAtmosphericTick))]
-    public class AirConditionerPatch
+    public class AirConditionerOnAtmosphericTickPatch
     {
         [UsedImplicitly]
         public static bool Prefix(AirConditioner __instance, ref float ____powerUsedDuringTick)
         {
             __instance.ThermodynamicsScale = 0f;
-            if (!__instance.OnOff || !__instance.Powered || __instance.Mode == 0 || !__instance.IsFullyConnected )
+            if (!__instance.OnOff || !__instance.Powered || __instance.Mode == 0 || !__instance.IsFullyConnected || ____powerUsedDuringTick > 0f)
             {
-                ____powerUsedDuringTick = 0f;
                 return false;
             }
             Atmosphere input = __instance.InputNetwork.Atmosphere;
@@ -566,7 +565,6 @@ namespace AtmosphericRealismOverhaul
             if (dp > 0f)
             {
                 float outTemp = outputAtmos.Temperature;
-                //outTemp = (outTemp == 0f) ? inputAtmos.Temperature : outTemp;
                 outTemp = Mathf.Max(outTemp, inputAtmos.Temperature);
                 float num2 = 8.3144f * inputAtmos.Temperature / inputAtmos.Volume;
                 float num3 = 8.3144f * outTemp / outputAtmos.Volume;
