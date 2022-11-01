@@ -546,7 +546,7 @@ namespace AtmosphericRealismOverhaul
         {
             float dp = Mathf.Abs(inputAtmos.PressureGassesAndLiquids - outputAtmos.PressureGassesAndLiquids);
             float liter = (1 - Mathf.Clamp01(dp / maxDelta)) * baseLiter;
-            float literN = GetVolumeMole(inputAtmos, liter, MatterState.All);
+            float literN = GetVolumeMole(inputAtmos, liter, typeToMove);
             float equalizN = GetEqualizeMole(inputAtmos, outputAtmos, float.MaxValue) * eqRate;
             float energy = MoveMassEnergy(inputAtmos, outputAtmos, Mathf.Max(equalizN, literN), typeToMove);
             return energy;
@@ -576,7 +576,7 @@ namespace AtmosphericRealismOverhaul
         }
         public static float GetVolumeMole(Atmosphere inputAtmos, float volume, MatterState matterStateToMove)
         {
-            float num = Mathf.Clamp(volume / (inputAtmos.Volume + volume), 0f, inputAtmos.Volume);
+            float num = Mathf.Clamp01(volume / (inputAtmos.Volume + volume));
             float n = num * inputAtmos.GasMixture.TotalMoles(matterStateToMove);
             return n;
         }
