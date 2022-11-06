@@ -152,7 +152,7 @@ namespace AtmosphericRealismOverhaul
         {
             if (inputAtmos != null && outputAtmos != null)
             {
-                AroMath.BiDirectional(inputAtmos,outputAtmos, float.MaxValue, 1f,matterState);
+                AroMath.BiDirectional(inputAtmos,outputAtmos, float.MaxValue, 1f, 1f,matterState);
             }
             return false;
         }
@@ -165,7 +165,7 @@ namespace AtmosphericRealismOverhaul
         {
             if (inputAtmos != null && outputAtmos != null)
             {
-                AroMath.BiDirectional(inputAtmos, outputAtmos, float.MaxValue, 1f, MatterState.All);
+                AroMath.BiDirectional(inputAtmos, outputAtmos, float.MaxValue, 1f, 1f, MatterState.All);
             }
             return false;
         }
@@ -178,7 +178,7 @@ namespace AtmosphericRealismOverhaul
         {
             if (inputAtmos != null && outputAtmos != null)
             {
-                AroMath.BiDirectional(inputAtmos, outputAtmos, float.MaxValue, scale, MatterState.All);
+                AroMath.BiDirectional(inputAtmos, outputAtmos, float.MaxValue, scale, 0.1f, MatterState.All);
             }
             return false;
         }
@@ -218,7 +218,7 @@ namespace AtmosphericRealismOverhaul
         [UsedImplicitly]
         public static bool Prefix(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove, MatterState typeToMove)
         {
-            AroMath.BiDirectional(inputAtmos, outputAtmos, amountPressureToMove, 0.8f, typeToMove);
+            AroMath.BiDirectional(inputAtmos, outputAtmos, amountPressureToMove, 0.8f, 0.1f, typeToMove);
             return false;
         }
     }
@@ -274,7 +274,8 @@ namespace AtmosphericRealismOverhaul
             }
             Atmosphere inputAtmos = __instance.ConnectedPipeNetworks[0].Atmosphere;
             Atmosphere outputAtmos = __instance.ConnectedPipeNetworks[1].Atmosphere;
-            AroMath.BiDirectional(inputAtmos, outputAtmos, float.MaxValue, __instance.OutputSetting / 110f, MatterState.All);
+            float rate = __instance.OutputSetting / 110f;
+            AroMath.BiDirectional(inputAtmos, outputAtmos, float.MaxValue, rate, rate, MatterState.All);
             return false;
         }
     }
@@ -574,7 +575,7 @@ namespace AtmosphericRealismOverhaul
             {
                 Atmosphere atmosphere = __instance.GridController.AtmosphericsController.CloneGlobalAtmosphere(__instance.ForwardGrid, 0L);
                 Atmosphere atmosphere2 = __instance.GridController.AtmosphericsController.CloneGlobalAtmosphere(__instance.BackwardGrid, 0L);
-                float energy = AroMath.BiDirectional(atmosphere, atmosphere2, float.MaxValue, 1f, MatterState.All);
+                float energy = AroMath.BiDirectional(atmosphere, atmosphere2, float.MaxValue, 1f, 1f, MatterState.All);
                 ____generatedPower = Mathf.Abs(energy) * AroMath.CompressEnergyPowerFactor;
             }
             return false;

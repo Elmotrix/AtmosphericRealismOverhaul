@@ -59,7 +59,7 @@ namespace AtmosphericRealismOverhaul
             float denominator = inputAtmos.GasMixture.HeatCapacity + outputAtmos.GasMixture.HeatCapacity;
             return numerator / denominator;
         }
-        public static float BiDirectional(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove, float mixRate, MatterState typeToMove)
+        public static float BiDirectional(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove, float eqRate, float mixRate, MatterState typeToMove)
         {
             float outputPressure = outputAtmos.Pressure(typeToMove);
             float inputPressure = inputAtmos.Pressure(typeToMove);
@@ -74,11 +74,11 @@ namespace AtmosphericRealismOverhaul
             {
                 if (outputPressure > inputPressure)
                 {
-                    energy += Equalize(outputAtmos, inputAtmos, amountPressureToMove, mixRate, typeToMove);
+                    energy += Equalize(outputAtmos, inputAtmos, amountPressureToMove, eqRate, typeToMove);
                 }
                 else
                 {
-                    energy += Equalize(inputAtmos, outputAtmos, amountPressureToMove, mixRate, typeToMove);
+                    energy += Equalize(inputAtmos, outputAtmos, amountPressureToMove, eqRate, typeToMove);
                 }
             }
             return energy;
