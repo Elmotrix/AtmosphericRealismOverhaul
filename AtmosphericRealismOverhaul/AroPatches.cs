@@ -144,7 +144,7 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
-    //[HarmonyPatch(typeof(Atmosphere), nameof(Atmosphere.Mix), new Type[] { typeof(Atmosphere), typeof(Atmosphere), typeof(MatterState) })]
+    [HarmonyPatch(typeof(Atmosphere), nameof(Atmosphere.Mix), new Type[] { typeof(Atmosphere), typeof(Atmosphere), typeof(MatterState) })]
     public class AtmosphereMixPatch
     {
         [UsedImplicitly]
@@ -152,11 +152,12 @@ namespace AtmosphericRealismOverhaul
         {
             if (inputAtmos != null && outputAtmos != null)
             {
+                AroMath.BiDirectional(inputAtmos,outputAtmos, float.MaxValue, 1f,matterState);
             }
             return false;
         }
     }
-    //[HarmonyPatch(typeof(Atmosphere), nameof(Atmosphere.Mix), new Type[] { typeof(Atmosphere), typeof(Atmosphere) })]
+    [HarmonyPatch(typeof(Atmosphere), nameof(Atmosphere.Mix), new Type[] { typeof(Atmosphere), typeof(Atmosphere) })]
     public class AtmosphereMix2Patch
     {
         [UsedImplicitly]
@@ -164,6 +165,7 @@ namespace AtmosphericRealismOverhaul
         {
             if (inputAtmos != null && outputAtmos != null)
             {
+                AroMath.BiDirectional(inputAtmos, outputAtmos, float.MaxValue, 1f, MatterState.All);
             }
             return false;
         }
@@ -297,8 +299,8 @@ namespace AtmosphericRealismOverhaul
             float Ratio1 = __instance.Ratio1 / 100f;
             float Ratio2 = __instance.Ratio2 / 100f;
             float mixRate = Mathf.Max(Ratio1, Ratio2);
-            float n1 = AroMath.GetEqualizeMole(inputAtmos1, outputAtmos, float.MaxValue) * mixRate * 0.5f;
-            float n2 = AroMath.GetEqualizeMole(inputAtmos2, outputAtmos, float.MaxValue) * mixRate * 0.5f;
+            float n1 = AroMath.GetEqualizeMole(inputAtmos1, outputAtmos, float.MaxValue, MatterState.All) * mixRate * 0.5f;
+            float n2 = AroMath.GetEqualizeMole(inputAtmos2, outputAtmos, float.MaxValue, MatterState.All) * mixRate * 0.5f;
             if (n1 * Ratio2 < n2 * Ratio1)
             {
                 n2 = n1 * Ratio2 / Ratio1;
@@ -327,8 +329,8 @@ namespace AtmosphericRealismOverhaul
             Atmosphere inputAtmos1 = __instance.InputNetwork.Atmosphere;
             Atmosphere outputAtmos1 = __instance.OutputNetwork.Atmosphere;
             Atmosphere outputAtmos2 = __instance.OutputNetwork2.Atmosphere;
-            float n1 = AroMath.GetEqualizeMole(inputAtmos1, outputAtmos1, float.MaxValue);
-            float n2 = AroMath.GetEqualizeMole(inputAtmos1, outputAtmos2, float.MaxValue);
+            float n1 = AroMath.GetEqualizeMole(inputAtmos1, outputAtmos1, float.MaxValue, MatterState.All);
+            float n2 = AroMath.GetEqualizeMole(inputAtmos1, outputAtmos2, float.MaxValue, MatterState.All);
             float n1o = 0;
             float n2o = 0;
             foreach (GasType type in AroMath.gasTypes)
@@ -368,43 +370,108 @@ namespace AtmosphericRealismOverhaul
     public class PowerGeneratorPipePowerPatch
     {
         [UsedImplicitly]
-        public static void Prefix(PowerGeneratorPipe __instance)
+        public static bool Prefix(PowerGeneratorPipe __instance, ref float ____energyAsPower, ref int ____ticksOver, ref float ____previousTotalEnergy)
         {
-            if (!__instance.OnOff || __instance.InputNetwork == null || __instance.OutputNetwork == null)
+
+            __instance.WorldAtmosphere = __instance.GridController.AtmosphericsController.GetAtmosphereLocal(__instance.WorldGrid);
+
+            Atmosphere inputAtmos = __instance.InputNetwork?.Atmosphere;
+            Atmosphere outputAtmos = __instance.OutputNetwork?.Atmosphere;
+            Atmosphere InternalAtmosphere = __instance.InternalAtmosphere;
+            float outputCompressEnergy = 0;
+            if (__instance.OutputNetwork != null)
             {
-                return;
+                float n = InternalAtmosphere.TotalMoles;
+                outputCompressEnergy = AroMath.CalcEnergyGasCompression(InternalAtmosphere, outputAtmos, n);
+                outputAtmos.Add(__instance.InternalAtmosphere.GasMixture);
+                InternalAtmosphere.GasMixture.Reset();
+                AroMath.AlterEnergy(outputAtmos, outputCompressEnergy);
+                AroAtmosphereDataController.Instance.AddFlow(outputAtmos, n, outputCompressEnergy);
+                AroAtmosphereDataController.Instance.AddFlow(InternalAtmosphere, -n, 0);
             }
-            __instance.PressurePerTick = __instance.InputNetwork.Atmosphere.PressureGasses;
-        }
-        [UsedImplicitly]
-        public static void Postfix(PowerGeneratorPipe __instance, ref float ____energyAsPower)
-        {
+            outputCompressEnergy = Mathf.Max(outputCompressEnergy * AroMath.CompressEnergyPowerFactor, 0f);
             if (!__instance.OnOff)
             {
-                return;
+                ____ticksOver = 0;
+                ____energyAsPower = 0f;
+                if (__instance.Powered)
+                {
+                    OnServer.Interact(__instance.InteractPowered, 0);
+                }
+                return false;
             }
-            float overPressure = __instance.InternalAtmosphere.PressureGasses - AroMath.GFGmaxPressure;
+            if (____energyAsPower > 0f)
+            {
+                if (!__instance.Powered)
+                {
+                    OnServer.Interact(__instance.InteractPowered, 1);
+                }
+            }
+            else if (__instance.Powered)
+            {
+                OnServer.Interact(__instance.InteractPowered, 0);
+            }
+            if (!__instance.IsOperable)
+            {
+                ____ticksOver = 0;
+                ____energyAsPower = 0f;
+                if (__instance.Powered)
+                {
+                    OnServer.Interact(__instance.InteractPowered, 0);
+                }
+                return false;
+            }
+            if (__instance.DoShutdown)
+            {
+                ____ticksOver++;
+                if (____ticksOver > 4)
+                {
+                    OnServer.Interact(__instance.InteractOnOff, 0);
+                    ____ticksOver = 0;
+                    return false;
+                }
+            }
+            else
+            {
+                ____ticksOver = 0;
+            }
+            if (__instance.InputNetwork == null || __instance.OutputNetwork == null)
+            {
+                ____ticksOver = 0;
+                ____energyAsPower = 0f;
+                if (__instance.Powered)
+                {
+                    OnServer.Interact(__instance.InteractPowered, 0);
+                }
+                return false;
+            }
+            if (inputAtmos.PressureGassesAndLiquids < 0.001f)
+            {
+                OnServer.Interact(__instance.InteractOnOff, 0);
+                ____energyAsPower = 0f;
+                ____previousTotalEnergy = 0f;
+                return false;
+            }
+
+            AroMath.CompressVolume(inputAtmos, InternalAtmosphere, InternalAtmosphere.Volume, MatterState.Gas);
+
+            InternalAtmosphere.Sparked = true;
+            InternalAtmosphere.ManualCombust(0.9f);
+            __instance.proceduralConvection = 0.01f + InternalAtmosphere.PressureGassesAndLiquids / 100f * 0.0066f;
+            __instance.proceduralConvection *= 0.28f;
+            ____previousTotalEnergy = InternalAtmosphere.CombustionEnergy - outputCompressEnergy;
+            ____energyAsPower = ____previousTotalEnergy * PowerGeneratorPipe.Efficiency;
+            if (__instance.OutputNetwork != null && (__instance.OnOff || InternalAtmosphere.CombustionEnergy > 0f))
+            {
+                InternalAtmosphere.GasMixture.RemoveEnergy(____energyAsPower);
+            }
+            float overPressure = InternalAtmosphere.PressureGasses - AroMath.GFGmaxPressure;
             float damage = overPressure / 1000f;
             if (damage > 0f)
             {
                 __instance.DamageState.Damage(ChangeDamageType.Increment, damage, DamageUpdateType.Brute);
             }
-            if (__instance.InputNetwork == null || __instance.OutputNetwork == null)
-            {
-                return;
-            }
-            float energy = AroMath.CalcEnergyGasCompression(__instance.InternalAtmosphere, __instance.OutputNetwork.Atmosphere, __instance.InternalAtmosphere.TotalMoles);
-            AroMath.AlterEnergy(__instance.OutputNetwork.Atmosphere, energy);
-            energy = Mathf.Max(energy * AroMath.CompressEnergyPowerFactor, 0f);
-            if (____energyAsPower >= energy)
-            {
-                ____energyAsPower = ____energyAsPower - energy;
-            }
-            else
-            {
-                OnServer.Interact(__instance.InteractOnOff, 0);
-                ____energyAsPower = 0f;
-            }
+            return false;
         }
     }
     [HarmonyPatch(typeof(PowerGeneratorPipe), nameof(PowerGeneratorPipe.OnThreadUpdate))]
@@ -522,9 +589,9 @@ namespace AtmosphericRealismOverhaul
             //____energyConvectedText += "\n" + Math.Round(AroMath.debug, 3);
             //____energyRadiatedText += "\n" + Math.Round(AroMath.debug2, 3);
             Atmosphere atmosphere = __instance.ScannedAtmosphere;
-            if (atmosphere != null && (atmosphere.Mode == Atmosphere.AtmosphereMode.Network || atmosphere.Mode == Atmosphere.AtmosphereMode.Thing))
+            if (atmosphere != null)
             {
-                AroAtmosphereData data = AroAtmosphereDataController.Instance.GetAroAtmosphereData(atmosphere);
+                AroDataBase data = AroAtmosphereDataController.Instance.GetAroAtmosphereData(atmosphere);
                 if (data != null)
                 {
                     ____temperatureValueText += "\n" + AroMath.DisplayUnitCleaner(data.EnergyFlowLastTick,"J");
@@ -551,255 +618,5 @@ namespace AtmosphericRealismOverhaul
         {
             AroAtmosphereDataController.Instance = new AroAtmosphereDataController();
         }
-    }
-    public class AroMath
-    {
-        public const float CompressEnergyPowerFactor = 0.1f;
-        public const float atm = 101.325f;
-        public const float R = 8.3144f;
-        public const float GFGmaxPressure = 5000f;
-        public static readonly float MinimumRatioToFilterAll = 0.001f;
-        public static GasType[] gasTypes = new GasType[]
-        { GasType.CarbonDioxide, GasType.Nitrogen, GasType.NitrousOxide, GasType.Oxygen, GasType.Pollutant, GasType.Volatiles, GasType.Water };
-        public static float debug;
-        public static float debug2;
-        public static float debug3;
-        public static string DisplayUnitCleaner(float baseValue, string unit)
-        {
-            float value = baseValue*1000;
-            string valueUnit = "m" + unit;
-            if (Mathf.Abs(value) > 1000)
-            {
-                value = value / 1000;
-                valueUnit = ""+ unit;
-            }
-            if (Mathf.Abs(value) > 1000)
-            {
-                value = value / 1000;
-                valueUnit = "k" + unit;
-            }
-            if (Mathf.Abs(value) > 1000)
-            {
-                value = value / 1000;
-                valueUnit = "M"+ unit;
-            }
-            int deci = 2;
-            if (Mathf.Abs(value) > 10)
-            {
-                deci = 1;
-            }
-            if (Mathf.Abs(value) > 100)
-            {
-                deci = 0;
-            }
-            return Math.Round(value, deci) + valueUnit;
-        }
-        public static float GetEnergyToTarget(Atmosphere inputAtmos, float targetTemperature)
-        {
-            return (targetTemperature - inputAtmos.Temperature) * inputAtmos.GasMixture.HeatCapacity;
-        }
-        public static float GetEnergyToEqualize(Atmosphere inputAtmos, Atmosphere outputAtmos)
-        {
-            float numerator = (inputAtmos.GasMixture.TotalEnergy * inputAtmos.GasMixture.HeatCapacity - outputAtmos.GasMixture.TotalEnergy * outputAtmos.GasMixture.HeatCapacity);
-            float denominator = inputAtmos.GasMixture.HeatCapacity + outputAtmos.GasMixture.HeatCapacity;
-            return numerator / denominator;
-        }
-        public static float BiDirectional(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove, float mixRate, MatterState typeToMove)
-        {
-            float outputPressure = outputAtmos.Pressure(typeToMove);
-            float inputPressure = inputAtmos.Pressure(typeToMove);
-            float ratio = outputPressure / inputPressure;
-            float energy = 0;
-            if (ratio > 0.90f && ratio < 1.10f)
-            {
-                Mix(inputAtmos, outputAtmos, mixRate, typeToMove);
-            }
-            else
-            {
-                if (outputPressure > inputPressure)
-                {
-                    energy += Equalize(outputAtmos, inputAtmos, amountPressureToMove, mixRate, typeToMove);
-                }
-                else
-                {
-                    energy += Equalize(inputAtmos, outputAtmos, amountPressureToMove, mixRate, typeToMove);
-                }
-            }
-            return energy;
-        }
-        private static void Mix(Atmosphere inputAtmos, Atmosphere outputAtmos, float mixRate, MatterState typeToMove)
-        {
-            if (inputAtmos != null && outputAtmos != null && mixRate > 0f)
-            {
-                GasMixture gasMixture = GasMixture.Create();
-                float volumeInn = inputAtmos.Volume;
-                float volumeOut = outputAtmos.Volume;
-                float totalVolume = volumeInn + volumeOut;
-                mixRate = Mathf.Clamp01(mixRate);
-                gasMixture.Add(inputAtmos.Remove(inputAtmos.TotalMoles * mixRate, typeToMove));
-                gasMixture.Add(inputAtmos.Remove(outputAtmos.TotalMoles * mixRate, typeToMove));
-                float totalN = gasMixture.TotalMoles(typeToMove);
-                inputAtmos.GasMixture.Add(gasMixture.Remove(totalN * (volumeInn / totalVolume), typeToMove));
-                outputAtmos.GasMixture.Add(gasMixture);
-                gasMixture.Reset();
-            }
-        }
-        public static float ActiveEqualize(Atmosphere inputAtmos, Atmosphere outputAtmos, float baseLiter, float maxDelta, float eqRate, MatterState typeToMove)
-        {
-            float dp = Mathf.Abs(inputAtmos.PressureGassesAndLiquids - outputAtmos.PressureGassesAndLiquids);
-            float liter = (1 - Mathf.Clamp01(dp / maxDelta)) * baseLiter;
-            float literN = GetVolumeMole(inputAtmos, liter, typeToMove);
-            float equalizN = GetEqualizeMole(inputAtmos, outputAtmos, float.MaxValue) * eqRate;
-            float energy = MoveMassEnergy(inputAtmos, outputAtmos, Mathf.Max(equalizN, literN), typeToMove);
-            return energy;
-        }
-        public static float Equalize(Atmosphere inputAtmos, Atmosphere outputAtmos, float desiredPressureChange, float mixRate, MatterState typeToMove)
-        {
-            mixRate = Mathf.Clamp01(mixRate);
-            float n = GetEqualizeMole(inputAtmos, outputAtmos, desiredPressureChange) * mixRate;
-            float energy = MoveMassEnergy(inputAtmos, outputAtmos, n, typeToMove);
-            return energy;
-        }
-        public static float GetEqualizeMole(Atmosphere inputAtmos, Atmosphere outputAtmos, float desiredPressureChange)
-        {
-            float dp = Mathf.Min(desiredPressureChange, inputAtmos.PressureGassesAndLiquids - outputAtmos.PressureGassesAndLiquids);
-            float n = 0f;
-            if (dp > 0f)
-            {
-                float outTemp = outputAtmos.Temperature;
-                outTemp = Mathf.Max(outTemp, inputAtmos.Temperature);
-                float num2 = 8.3144f * inputAtmos.Temperature / inputAtmos.Volume;
-                float num3 = 8.3144f * outTemp / outputAtmos.Volume;
-                float num4 = num2 + num3;
-                n = dp / num4;
-            }
-            n = Mathf.Min(n, inputAtmos.TotalMoles / 2f);
-            return n;
-        }
-        public static float GetVolumeMole(Atmosphere inputAtmos, float volume, MatterState matterStateToMove)
-        {
-            float num = Mathf.Clamp01(volume / (inputAtmos.Volume + volume));
-            float n = num * inputAtmos.GasMixture.TotalMoles(matterStateToMove);
-            return n;
-        }
-        public static float CompressVolume(Atmosphere inputAtmos, Atmosphere outputAtmos, float volume, MatterState matterStateToMove)
-        {
-            float n = GetVolumeMole(inputAtmos, volume, matterStateToMove);
-            float energy = MoveMassEnergy(inputAtmos, outputAtmos, n, matterStateToMove);
-            return energy;
-        }
-        public static float MoveMassEnergy(Atmosphere inputAtmos, Atmosphere outputAtmos, float n, MatterState matterStateToMove)
-        {
-            if (n <= 0f)
-            {
-                return 0f;
-            }
-            GasMixture gasMixture = inputAtmos.Remove(n, matterStateToMove);
-            outputAtmos.Add(gasMixture);
-            float energy = CalcEnergyGasCompression(inputAtmos, outputAtmos, n);
-            AlterEnergy(outputAtmos, energy);
-            AroAtmosphereDataController.Instance.AddFlow(inputAtmos, -n,0);
-            AroAtmosphereDataController.Instance.AddFlow(outputAtmos, n, energy);
-            return energy;
-        }
-        public static void AlterEnergy(Atmosphere atmosphere, float energy)
-        {
-            if (energy >= 0f)
-            {
-                atmosphere.GasMixture.AddEnergy(energy);
-            }
-            else
-            {
-                atmosphere.GasMixture.RemoveEnergy(-energy);
-            }
-        }
-        public static float CalcEnergyGasCompression(Atmosphere inputAtmos, Atmosphere outputAtmos, float n)
-        {
-            if (n <= 0f)
-            {
-                return 0f;
-            }
-            float Ratio = Mathf.Clamp(Mathf.Max(5, outputAtmos.PressureGassesAndLiquids) / Mathf.Max(5, inputAtmos.PressureGassesAndLiquids), float.Epsilon, float.MaxValue);
-
-            //float inTemp = inputAtmos.Temperature;
-            //float outTemp = outputAtmos.Temperature;
-            //inTemp = (inTemp == 0f) ? outTemp : inTemp;
-            //outTemp = (outTemp == 0f) ? inTemp : outTemp;
-            //float Ratio2 = Mathf.Clamp(Mathf.Max(1, inTemp) / Mathf.Max(1, outTemp), float.Epsilon, float.MaxValue);
-            //Ratio = Ratio * Ratio2;
-
-            float energy = n * 350f * Mathf.Log(Ratio);
-            return energy;
-        }
-    }
-    public class AroAtmosphereDataController
-    {
-        public static AroAtmosphereDataController Instance;
-        public AroAtmosphereDataController()
-        {
-            AroAtmosphereDataList = new List<AroAtmosphereData>();
-        }
-        private List<AroAtmosphereData> AroAtmosphereDataList;
-        public void MoveHistoricValues()
-        {
-            foreach (AroAtmosphereData item in AroAtmosphereDataList)
-            {
-                item.EnergyFlowLastTick = item.EnergyThisTick;
-                item.EnergyThisTick = 0;
-                item.MassFlowLastTick = item.MassThisTick;
-                item.MassThisTick = 0;
-            }
-        }
-
-        public void AddFlow(Atmosphere atmosphere,float mass, float energy)
-        {
-            if (atmosphere.Mode == Atmosphere.AtmosphereMode.World || atmosphere.Mode == Atmosphere.AtmosphereMode.Global)
-            {
-                return;
-            }
-            foreach (AroAtmosphereData item in AroAtmosphereDataList)
-            {
-                if (item.Atmosphere == atmosphere)
-                {
-                    AddFlow(item, mass, energy);
-                    return;
-                }
-            }
-            AroAtmosphereData newAroData = new AroAtmosphereData(atmosphere);
-            AroAtmosphereDataList.Add(newAroData);
-            AddFlow(newAroData, mass, energy);
-        }
-
-        private void AddFlow(AroAtmosphereData atmosphereData, float mass, float energy)
-        {
-            atmosphereData.MassThisTick += Mathf.Abs(mass);
-            atmosphereData.EnergyThisTick += energy;
-        }
-
-        public AroAtmosphereData GetAroAtmosphereData(Atmosphere atmosphere)
-        {
-            foreach (AroAtmosphereData item in AroAtmosphereDataList)
-            {
-                if (item.Atmosphere == atmosphere)
-                {
-                    return item;
-                }
-            }
-            return null;
-        }
-
-    }
-
-    public class AroAtmosphereData
-    {
-        public AroAtmosphereData(Atmosphere atmosphere)
-        {
-            Atmosphere = atmosphere;
-        }
-        public Atmosphere Atmosphere;
-        public float MassFlowLastTick { get; set; }
-        public float MassThisTick { get; set; }
-        public float EnergyFlowLastTick { get; set; }
-        public float EnergyThisTick { get; set; }
     }
 }
