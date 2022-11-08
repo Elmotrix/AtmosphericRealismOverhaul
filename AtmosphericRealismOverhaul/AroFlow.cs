@@ -7,13 +7,11 @@ using static Assets.Scripts.Atmospherics.Atmosphere;
 
 namespace AtmosphericRealismOverhaul
 {
-    public class AroMath
+    public class AroFlow
     {
-        public const float CompressEnergyPowerFactor = 0.1f;
         public const float atm = 101.325f;
         public const float R = 8.3144f;
         public const float GFGmaxPressure = 5000f;
-        public static readonly float MinimumRatioToFilterAll = 0.001f;
         public static GasType[] gasTypes = new GasType[]
         { GasType.CarbonDioxide, GasType.Nitrogen, GasType.NitrousOxide, GasType.Oxygen, GasType.Pollutant, GasType.Volatiles, GasType.Water };
         public static float debug;
@@ -59,27 +57,32 @@ namespace AtmosphericRealismOverhaul
             float denominator = inputAtmos.GasMixture.HeatCapacity + outputAtmos.GasMixture.HeatCapacity;
             return numerator / denominator;
         }
-        public static float BiDirectional(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove, float eqRate, float mixRate, MatterState typeToMove)
+        public static float BiDirectional(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove=float.MaxValue, float eqRate=1f, float mixRate=1f, float mixThreshold = 0.1f, MatterState typeToMove = MatterState.All)
         {
+            if (inputAtmos == null || outputAtmos == null)
+            {
+                return 0;
+            }
             float outputPressure = outputAtmos.Pressure(typeToMove);
             float inputPressure = inputAtmos.Pressure(typeToMove);
-            float ratio = outputPressure / inputPressure;
+            float ratio =  outputPressure / inputPressure;
+            if (outputPressure > inputPressure)
+            {
+                ratio = inputPressure/outputPressure;
+            }
             ratio = Mathf.Abs(ratio - 1f);
             float energy = 0;
-            if (ratio < 0.1f)
+            if (ratio < mixThreshold)
             {
                 Mix(inputAtmos, outputAtmos, mixRate, typeToMove);
             }
+            if (outputPressure > inputPressure)
+            {
+                energy += Equalize(outputAtmos, inputAtmos, amountPressureToMove, eqRate, typeToMove);
+            }
             else
             {
-                if (outputPressure > inputPressure)
-                {
-                    energy += Equalize(outputAtmos, inputAtmos, amountPressureToMove, eqRate, typeToMove);
-                }
-                else
-                {
-                    energy += Equalize(inputAtmos, outputAtmos, amountPressureToMove, eqRate, typeToMove);
-                }
+                energy += Equalize(inputAtmos, outputAtmos, amountPressureToMove, eqRate, typeToMove);
             }
             return energy;
         }
@@ -110,20 +113,20 @@ namespace AtmosphericRealismOverhaul
             float dp = Mathf.Abs(inputAtmos.PressureGassesAndLiquids - outputAtmos.PressureGassesAndLiquids);
             float liter = (1 - Mathf.Clamp01(dp / maxDelta)) * baseLiter;
             float literN = GetVolumeMole(inputAtmos, liter, typeToMove);
-            float equalizN = GetEqualizeMole(inputAtmos, outputAtmos, float.MaxValue, typeToMove) * eqRate;
-            float energy = MoveMassEnergy(inputAtmos, outputAtmos, Mathf.Max(equalizN, literN), typeToMove);
+            float equalizeN = GetEqualizeMole(inputAtmos, outputAtmos, float.MaxValue, eqRate, typeToMove);
+            float energy = MoveMassEnergy(inputAtmos, outputAtmos, Mathf.Max(equalizeN, literN), typeToMove);
             return energy;
         }
-        public static float Equalize(Atmosphere inputAtmos, Atmosphere outputAtmos, float desiredPressureChange, float mixRate, MatterState typeToMove)
+        public static float Equalize(Atmosphere inputAtmos, Atmosphere outputAtmos, float desiredPressureChange, float eqRate, MatterState typeToMove)
         {
-            mixRate = Mathf.Clamp01(mixRate);
-            float n = GetEqualizeMole(inputAtmos, outputAtmos, desiredPressureChange, typeToMove) * mixRate;
+            float n = GetEqualizeMole(inputAtmos, outputAtmos, desiredPressureChange, eqRate, typeToMove);
             float energy = MoveMassEnergy(inputAtmos, outputAtmos, n, typeToMove);
             return energy;
         }
-        public static float GetEqualizeMole(Atmosphere inputAtmos, Atmosphere outputAtmos, float desiredPressureChange, MatterState matterStateToMove)
+        public static float GetEqualizeMole(Atmosphere inputAtmos, Atmosphere outputAtmos, float desiredPressureChange, float eqRate, MatterState matterStateToMove)
         {
-            float dp = Mathf.Min(desiredPressureChange, inputAtmos.PressureGassesAndLiquids - outputAtmos.PressureGassesAndLiquids);
+            eqRate = Mathf.Clamp01(eqRate);
+            float dp = Mathf.Min(desiredPressureChange, (inputAtmos.PressureGassesAndLiquids - outputAtmos.PressureGassesAndLiquids) * eqRate);
             float n = 0f;
             if (dp > 0f)
             {
@@ -149,6 +152,18 @@ namespace AtmosphericRealismOverhaul
             float energy = MoveMassEnergy(inputAtmos, outputAtmos, n, matterStateToMove);
             return energy;
         }
+        public static Mole MoveMassEnergy(Atmosphere inputAtmos, Atmosphere outputAtmos, float n, GasType gasType)
+        {
+            Mole mole = inputAtmos.GasMixture.Remove(gasType, n);
+            if (mole.Quantity <= 0f)
+            {
+                return mole;
+            }
+            GasMixture gasMixture = GasMixture.Create();
+            gasMixture.Add(mole);
+            MoveMassEnergy(inputAtmos, outputAtmos,gasMixture);
+            return mole;
+        }
         public static float MoveMassEnergy(Atmosphere inputAtmos, Atmosphere outputAtmos, float n, MatterState matterStateToMove)
         {
             if (n <= 0f)
@@ -156,9 +171,13 @@ namespace AtmosphericRealismOverhaul
                 return 0f;
             }
             GasMixture gasMixture = inputAtmos.Remove(n, matterStateToMove);
-            n = gasMixture.TotalMolesGassesAndLiquids;
-            outputAtmos.Add(gasMixture);
-            float energy = CalcEnergyGasCompression(inputAtmos, outputAtmos, n);
+            return MoveMassEnergy(inputAtmos, outputAtmos,gasMixture);
+        }
+        private static float MoveMassEnergy(Atmosphere inputAtmos, Atmosphere outputAtmos,GasMixture gasMixtureToAdd)
+        {
+            float n = gasMixtureToAdd.TotalMolesGassesAndLiquids;
+            outputAtmos.Add(gasMixtureToAdd);
+            float energy = AroEnergy.CalcEnergyGasCompression(inputAtmos, outputAtmos, n);
             AlterEnergy(outputAtmos, energy);
             AroAtmosphereDataController.Instance.AddFlow(inputAtmos, -n, 0);
             AroAtmosphereDataController.Instance.AddFlow(outputAtmos, n, energy);
@@ -174,24 +193,6 @@ namespace AtmosphericRealismOverhaul
             {
                 atmosphere.GasMixture.RemoveEnergy(-energy);
             }
-        }
-        public static float CalcEnergyGasCompression(Atmosphere inputAtmos, Atmosphere outputAtmos, float n)
-        {
-            if (n <= 0f)
-            {
-                return 0f;
-            }
-            float Ratio = Mathf.Clamp(Mathf.Max(5, outputAtmos.PressureGassesAndLiquids) / Mathf.Max(5, inputAtmos.PressureGassesAndLiquids), float.Epsilon, float.MaxValue);
-
-            //float inTemp = inputAtmos.Temperature;
-            //float outTemp = outputAtmos.Temperature;
-            //inTemp = (inTemp == 0f) ? outTemp : inTemp;
-            //outTemp = (outTemp == 0f) ? inTemp : outTemp;
-            //float Ratio2 = Mathf.Clamp(Mathf.Max(1, inTemp) / Mathf.Max(1, outTemp), float.Epsilon, float.MaxValue);
-            //Ratio = Ratio * Ratio2;
-
-            float energy = n * 350f * Mathf.Log(Ratio);
-            return energy;
         }
     }
 }

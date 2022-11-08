@@ -57,7 +57,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AroMath.cs" />
+    <Compile Include="AroEnergy.cs" />
+    <Compile Include="AroFlow.cs" />
     <Compile Include="AroPatches.cs" />
     <Compile Include="AroAtmosData.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
