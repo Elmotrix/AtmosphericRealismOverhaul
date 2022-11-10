@@ -3,19 +3,50 @@ using UnityEngine;
 using Assets.Scripts.Atmospherics;
 
 using Assets.Scripts.GridSystem;
+using Assets.Scripts.Objects.Pipes;
 
 namespace AtmosphericRealismOverhaul
 {
     public class AroAtmosphereDataController
     {
         public static AroAtmosphereDataController Instance;
+        public static AroAtmosphereDataController GetInstance()
+        {
+            if (Instance == null)
+            {
+                Instance = new AroAtmosphereDataController();
+            }
+            return Instance;
+        }
         public AroAtmosphereDataController()
         {
             AroAtmosphereDataList = new List<AroAtmosphereData>();
             AroRoomDataList = new List<AroRoomData>();
+            heatExchangerDataList = new List<HeatExchangerData>();
         }
         private List<AroAtmosphereData> AroAtmosphereDataList;
         private List<AroRoomData> AroRoomDataList;
+        private List<HeatExchangerData> heatExchangerDataList;
+        public void SetHeatExchanger(HeatExchanger heatExchanger, Atmosphere atmos2, Atmosphere atmos3)
+        {
+            heatExchangerDataList.Add(new HeatExchangerData() { Exchanger = heatExchanger,Internal2 = atmos2 , Internal3=atmos3});
+        }
+        public void ClearAtmosLists()
+        {
+            AroAtmosphereDataList.Clear();
+            AroRoomDataList.Clear();
+        }
+        public HeatExchangerData GetHeatExchangerData(HeatExchanger heatExchanger)
+        {
+            foreach (HeatExchangerData item in heatExchangerDataList)
+            {
+                if (item.Exchanger == heatExchanger)
+                {
+                    return item;
+                }
+            }
+            return null;
+        }
         public void MoveHistoricValues()
         {
             foreach (AroAtmosphereData item in AroAtmosphereDataList)
@@ -147,5 +178,11 @@ namespace AtmosphericRealismOverhaul
             Atmosphere = atmosphere;
         }
         public Atmosphere Atmosphere;
+    }
+    public class HeatExchangerData
+    {
+        public HeatExchanger Exchanger { get; set; }
+        public Atmosphere Internal2 { get; set; }
+        public Atmosphere Internal3 { get; set; }
     }
 }

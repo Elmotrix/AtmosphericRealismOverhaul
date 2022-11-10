@@ -373,8 +373,8 @@ namespace AtmosphericRealismOverhaul
                 outputAtmos.Add(__instance.InternalAtmosphere.GasMixture);
                 InternalAtmosphere.GasMixture.Reset();
                 AroEnergy.AlterEnergy(outputAtmos, outputCompressEnergy);
-                AroAtmosphereDataController.Instance.AddFlow(outputAtmos, n, outputCompressEnergy);
-                AroAtmosphereDataController.Instance.AddFlow(InternalAtmosphere, -n, 0);
+                AroAtmosphereDataController.GetInstance().AddFlow(outputAtmos, n, outputCompressEnergy);
+                AroAtmosphereDataController.GetInstance().AddFlow(InternalAtmosphere, -n, 0);
             }
             outputCompressEnergy = Mathf.Max(outputCompressEnergy * AroEnergy.CompressEnergyPowerFactor, 0f);
             if (____energyAsPower > 0f)
@@ -487,8 +487,8 @@ namespace AtmosphericRealismOverhaul
             ____powerUsedDuringTick = Mathf.Abs(energy) * AroEnergy.CompressEnergyPowerFactor / Mathf.Max(pe * iwe * tde, 0.000001f);
             AroEnergy.AlterEnergy(waste, -energy);
             AroEnergy.AlterEnergy(internalAtmos, energy);
-            AroAtmosphereDataController.Instance.AddFlow(waste, 0, -energy);
-            AroAtmosphereDataController.Instance.AddFlow(internalAtmos, 0, energy);
+            AroAtmosphereDataController.GetInstance().AddFlow(waste, 0, -energy);
+            AroAtmosphereDataController.GetInstance().AddFlow(internalAtmos, 0, energy);
             __instance.TemperatureDifferentialEfficiency = tde;
             __instance.OperationalTemperatureLimitor = iwe;
             __instance.OptimalPressureScalar = pe;
@@ -547,18 +547,92 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
+    [HarmonyPatch]
+    public class AtmosAnalyserClearPatch
+    {
+        [HarmonyReversePatch]
+        [HarmonyPatch(typeof(AtmosAnalyser), "Clear")]
+        public static void AtmosAnalyserClear(object instance)
+        {
+
+        }
+    }
+    [HarmonyPatch]
+    public class AtmosAnalyserSetHashPatch
+    {
+        [HarmonyReversePatch]
+        [HarmonyPatch(typeof(AtmosAnalyser), "SetHash")]
+        public static void AtmosAnalyserSetHash(object instance, Mole mole, ref int tempHash, ref GasMixture parent)
+        {
+
+        }
+    }
     [HarmonyPatch(typeof(AtmosAnalyser), nameof(AtmosAnalyser.OnPreScreenUpdate))]
     public class AtmosAnalyserOnPreScreenUpdate
     {
-        [UsedImplicitly]
-        public static void Postfix(AtmosAnalyser __instance, ref string ____temperatureValueText, ref string ____energyConvectedText, ref string ____energyRadiatedText, ref string ____pressureValueText)
+        [HarmonyPrefix]
+        public static bool Prefix(out HeatExchangerData __state)
+        {
+            if (CursorManager.CursorThing is HeatExchanger exchanger)
+            {
+                HeatExchangerData exchangerData = AroAtmosphereDataController.GetInstance().GetHeatExchangerData(exchanger);
+                __state = exchangerData;
+                return false;
+            }
+            __state = null;
+            return true;
+        }
+        [HarmonyPostfix]
+        public static void Postfix(AtmosAnalyser __instance, HeatExchangerData __state, ref string ____temperatureValueText, ref string ____energyConvectedText, ref string ____energyRadiatedText, ref string ____pressureValueText, ref string ____selectedText, ref int ____gasHash)
         {
             //____energyConvectedText += "\n" + Math.Round(AroMath.debug, 3);
             //____energyRadiatedText += "\n" + Math.Round(AroMath.debug2, 3);
-            Atmosphere atmosphere = __instance.ScannedAtmosphere;
+            IThermal thermal = CursorManager.CursorThing as IThermal;
+            Atmosphere ScannedAtmosphere = __instance.ScannedAtmosphere;
+            Atmosphere atmosphere = (((ScannedAtmosphere == null || ScannedAtmosphere.Mode == Atmosphere.AtmosphereMode.World) && thermal != null) ? thermal.ThermalAtmosphere : ScannedAtmosphere);
+            if (thermal is PipeRadiator)
+            {
+                atmosphere = null;
+            }
+            if (__state != null)
+            {
+                HeatExchangerData exchangerData = __state;
+                //AtmosAnalyserClearPatch.AtmosAnalyserClear(__instance);
+                if (KeyManager.GetButton(KeyCode.LeftShift))
+                {
+                    atmosphere = exchangerData.Internal2;
+                    ____selectedText = "Left: " + exchangerData.Exchanger.DisplayName.ToUpper();
+                }
+                else
+                {
+                    atmosphere = exchangerData.Internal3;
+                    ____selectedText = "Right: " + exchangerData.Exchanger.DisplayName.ToUpper();
+                }
+                if (atmosphere.PressureGassesAndLiquids > float.Epsilon)
+                {
+                    ____pressureValueText = AroFlow.DisplayUnitCleaner(atmosphere.PressureGassesAndLiquids * 1000, "Pa");
+                    //____temperatureValueText = Math.Round(atmosphere.Temperature,1) + "K";
+                    ____temperatureValueText = AroFlow.DisplayUnitCleaner(atmosphere.Temperature - Chemistry.Temperature.ZeroDegrees, " °C");
+                }
+                try
+                {
+                    int tempHash = 0;
+                    AtmosAnalyserSetHashPatch.AtmosAnalyserSetHash(__instance, atmosphere.GasMixture.Oxygen, ref tempHash, ref atmosphere.GasMixture);
+                    AtmosAnalyserSetHashPatch.AtmosAnalyserSetHash(__instance, atmosphere.GasMixture.Nitrogen, ref tempHash, ref atmosphere.GasMixture);
+                    AtmosAnalyserSetHashPatch.AtmosAnalyserSetHash(__instance, atmosphere.GasMixture.Volatiles, ref tempHash, ref atmosphere.GasMixture);
+                    AtmosAnalyserSetHashPatch.AtmosAnalyserSetHash(__instance, atmosphere.GasMixture.Water, ref tempHash, ref atmosphere.GasMixture);
+                    AtmosAnalyserSetHashPatch.AtmosAnalyserSetHash(__instance, atmosphere.GasMixture.Pollutant, ref tempHash, ref atmosphere.GasMixture);
+                    AtmosAnalyserSetHashPatch.AtmosAnalyserSetHash(__instance, atmosphere.GasMixture.CarbonDioxide, ref tempHash, ref atmosphere.GasMixture);
+                    AtmosAnalyserSetHashPatch.AtmosAnalyserSetHash(__instance, atmosphere.GasMixture.NitrousOxide, ref tempHash, ref atmosphere.GasMixture);
+                    ____gasHash = tempHash;
+                }
+                catch (Exception)
+                {
+                }
+            }
             if (atmosphere != null)
             {
-                AroDataBase data = AroAtmosphereDataController.Instance.GetAroAtmosphereData(atmosphere);
+                AroDataBase data = AroAtmosphereDataController.GetInstance().GetAroAtmosphereData(atmosphere);
                 if (data != null)
                 {
                     ____temperatureValueText += "\n" + AroFlow.DisplayUnitCleaner(data.EnergyFlowLastTick,"J");
@@ -566,7 +640,6 @@ namespace AtmosphericRealismOverhaul
                 }
             }
         }
-
     }
     [HarmonyPatch(typeof(AtmosphericsManager), nameof(AtmosphericsManager.ThingAtmosphereTick))]
     public class AtmosphericsManagerThingAtmosphereTickPatch
@@ -574,16 +647,17 @@ namespace AtmosphericRealismOverhaul
         [UsedImplicitly]
         public static void Prefix()
         {
-            AroAtmosphereDataController.Instance.MoveHistoricValues();
+            AroAtmosphereDataController.GetInstance().MoveHistoricValues();
         }
     }
     [HarmonyPatch(typeof(AtmosphericsManager), nameof(AtmosphericsManager.StartManager))]
     public class AtmosphericsManagerStartManagerPatch
     {
         [UsedImplicitly]
-        public static void Postfix()
+        public static void Prefix()
         {
-            AroAtmosphereDataController.Instance = new AroAtmosphereDataController();
+            //AroAtmosphereDataController.Instance = new AroAtmosphereDataController();
+            AroAtmosphereDataController.GetInstance().ClearAtmosLists();
         }
     }
     [HarmonyPatch(typeof(Radiator), nameof(Radiator.OnPreAtmosphere))]
@@ -626,6 +700,17 @@ namespace AtmosphericRealismOverhaul
     //        return false;
     //    }
     //}
+    [HarmonyPatch(typeof(HeatExchanger), nameof(HeatExchanger.Start))]
+    public class HeatExchangerStartPatch
+    {
+        [UsedImplicitly]
+        public static void Postfix(HeatExchanger __instance, Atmosphere ___internalAtmosphere2, Atmosphere ___internalAtmosphere3)
+        {
+            AroAtmosphereDataController.GetInstance().SetHeatExchanger(__instance, ___internalAtmosphere2, ___internalAtmosphere3);
+            ___internalAtmosphere2.Mode = Atmosphere.AtmosphereMode.Thing;
+            ___internalAtmosphere3.Mode = Atmosphere.AtmosphereMode.Thing;
+        }
+    }
     [HarmonyPatch(typeof(HeatExchanger), nameof(HeatExchanger.OnAtmosphericTick))]
     public class HeatExchangerOnAtmosphericTickPatch
     {
@@ -634,11 +719,11 @@ namespace AtmosphericRealismOverhaul
         {
             if (__instance.InputNetwork != null && __instance.InputNetwork2 != null && __instance.OutputNetwork != null && __instance.OutputNetwork2 != null && __instance.InputNetwork.Atmosphere != null && __instance.InputNetwork2.Atmosphere != null)
             {
-                AroFlow.BiDirectional(___internalAtmosphere2, __instance.InputNetwork.Atmosphere, eqRate: 0.35f, mixRate: 0.001f, mixThreshold: 0.0005f);
-                AroFlow.BiDirectional(___internalAtmosphere3, __instance.InputNetwork2.Atmosphere, eqRate: 0.35f, mixRate: 0.001f, mixThreshold: 0.0005f);
-                AroFlow.BiDirectional(___internalAtmosphere2, __instance.OutputNetwork.Atmosphere, eqRate: 0.35f, mixRate: 0.001f, mixThreshold: 0.0005f);
-                AroFlow.BiDirectional(___internalAtmosphere3, __instance.OutputNetwork2.Atmosphere, eqRate: 0.35f, mixRate: 0.001f, mixThreshold: 0.0005f);
-                float volume = __instance.Bounds.size.x * __instance.Bounds.size.y * __instance.Bounds.size.z;
+                AroFlow.BiDirectional(___internalAtmosphere2, __instance.InputNetwork.Atmosphere, eqRate: 0.35f, mixRate: 0.0015f, mixThreshold: 0.0005f);
+                AroFlow.BiDirectional(___internalAtmosphere3, __instance.InputNetwork2.Atmosphere, eqRate: 0.35f, mixRate: 0.0015f, mixThreshold: 0.0005f);
+                AroFlow.BiDirectional(___internalAtmosphere2, __instance.OutputNetwork.Atmosphere, eqRate: 0.35f, mixRate: 0.0015f, mixThreshold: 0.0005f);
+                AroFlow.BiDirectional(___internalAtmosphere3, __instance.OutputNetwork2.Atmosphere, eqRate: 0.35f, mixRate: 0.0015f, mixThreshold: 0.0005f);
+                float volume = __instance.Bounds.size.x * __instance.Bounds.size.y * __instance.Bounds.size.z * 10f;
                 float convectionHeat = Atmosphere.GetConvectionHeat(___internalAtmosphere2, ___internalAtmosphere3, volume * ___internalAtmosphere2.RatioOneAtmosphereClamped * ___internalAtmosphere3.RatioOneAtmosphereClamped);
                 ___internalAtmosphere2.GasMixture.TransferEnergyTo(ref ___internalAtmosphere3.GasMixture, convectionHeat * AtmosphericsManager.Instance.TickSpeedMs * 1f);
             }
@@ -677,7 +762,6 @@ namespace AtmosphericRealismOverhaul
                         __instance.LungAtmosphere.Volume = 7f;
                     }
                 }
-                ConsoleWindow.Print("Pp: " + __instance.LungAtmosphere.ParticalPressureO2 + " Pressue: " + __instance.LungAtmosphere.PressureGasses+ " breathAtmosLiter: " + __instance.BreathingAtmosphere.Volume + " breathAtmosO2Ratio: " + __instance.BreathingAtmosphere.GasMixture.GetGasTypeRatio(GasType.Oxygen));
             }
         }
         [UsedImplicitly]

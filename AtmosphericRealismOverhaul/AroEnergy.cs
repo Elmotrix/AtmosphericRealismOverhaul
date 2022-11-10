@@ -49,10 +49,10 @@ namespace AtmosphericRealismOverhaul
         public static float GetPipeRadiatorScale(Atmosphere pipeAtmosphere)
         {
             float scale = 0.3f;
-            AroDataBase aroAtmosphereData = AroAtmosphereDataController.Instance.GetAroAtmosphereData(pipeAtmosphere);
+            AroDataBase aroAtmosphereData = AroAtmosphereDataController.GetInstance().GetAroAtmosphereData(pipeAtmosphere);
             if (aroAtmosphereData != null)
             {
-                scale += aroAtmosphereData.MassFlowLastTick * pipeAtmosphere.Volume / (pipeAtmosphere.TotalMoles * 100);
+                scale += 10f * aroAtmosphereData.MassFlowLastTick * pipeAtmosphere.Volume / (pipeAtmosphere.TotalMoles * Chemistry.PipeVolume);
             }
             return Mathf.Clamp01(scale);
         }

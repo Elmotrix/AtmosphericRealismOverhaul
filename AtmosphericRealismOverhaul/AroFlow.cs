@@ -47,7 +47,7 @@ namespace AtmosphericRealismOverhaul
             }
             return Math.Round(value, deci) + valueUnit;
         }
-        public static float BiDirectional(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove=float.MaxValue, float eqRate=1f, float mixRate=0.05f, float mixThreshold = 0.01f, MatterState typeToMove = MatterState.All)
+        public static float BiDirectional(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove=float.MaxValue, float eqRate=1f, float mixRate=0.07f, float mixThreshold = 0.01f, MatterState typeToMove = MatterState.All)
         {
             if (inputAtmos == null || outputAtmos == null)
             {
@@ -98,8 +98,8 @@ namespace AtmosphericRealismOverhaul
                 outputAtmos.GasMixture.Add(gasMixture);
                 gasMixture.Reset();
                 moleFlow = moleFlow - inputAtmos.TotalMoles;
-                AroAtmosphereDataController.Instance.AddFlow(inputAtmos, -moleFlow, 0f);
-                AroAtmosphereDataController.Instance.AddFlow(outputAtmos, moleFlow, 0f);
+                AroAtmosphereDataController.GetInstance().AddFlow(inputAtmos, -moleFlow, 0f);
+                AroAtmosphereDataController.GetInstance().AddFlow(outputAtmos, moleFlow, 0f);
             }
         }
         public static float ActiveEqualize(Atmosphere inputAtmos, Atmosphere outputAtmos, float baseLiter, float maxDelta, float eqRate, MatterState typeToMove)
@@ -173,8 +173,8 @@ namespace AtmosphericRealismOverhaul
             outputAtmos.Add(gasMixtureToAdd);
             float energy = AroEnergy.CalcEnergyGasCompression(inputAtmos, outputAtmos, n);
             AroEnergy.AlterEnergy(outputAtmos, energy);
-            AroAtmosphereDataController.Instance.AddFlow(inputAtmos, -n, 0);
-            AroAtmosphereDataController.Instance.AddFlow(outputAtmos, n, energy);
+            AroAtmosphereDataController.GetInstance().AddFlow(inputAtmos, -n, 0);
+            AroAtmosphereDataController.GetInstance().AddFlow(outputAtmos, n, energy);
             return energy;
         }
     }
