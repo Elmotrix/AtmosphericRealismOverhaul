@@ -166,7 +166,7 @@ namespace AtmosphericRealismOverhaul
         {
             if (inputAtmos != null && outputAtmos != null)
             {
-                AroFlow.BiDirectional(inputAtmos, outputAtmos, mixThreshold: 0.5f);
+                AroFlow.BiDirectional(inputAtmos, outputAtmos); // , mixThreshold: 0.5f
             }   
             return false;
         }
@@ -179,7 +179,7 @@ namespace AtmosphericRealismOverhaul
         {
             if (inputAtmos != null && outputAtmos != null)
             {
-                AroFlow.BiDirectional(inputAtmos, outputAtmos, eqRate: scale, mixThreshold: 0f);
+                AroFlow.BiDirectional(inputAtmos, outputAtmos, eqRate: scale, mixRate: 0.01f);
             }
             return false;
         }
@@ -372,7 +372,7 @@ namespace AtmosphericRealismOverhaul
                 outputCompressEnergy = AroEnergy.CalcEnergyGasCompression(InternalAtmosphere, outputAtmos, n);
                 outputAtmos.Add(__instance.InternalAtmosphere.GasMixture);
                 InternalAtmosphere.GasMixture.Reset();
-                AroFlow.AlterEnergy(outputAtmos, outputCompressEnergy);
+                AroEnergy.AlterEnergy(outputAtmos, outputCompressEnergy);
                 AroAtmosphereDataController.Instance.AddFlow(outputAtmos, n, outputCompressEnergy);
                 AroAtmosphereDataController.Instance.AddFlow(InternalAtmosphere, -n, 0);
             }
@@ -478,15 +478,15 @@ namespace AtmosphericRealismOverhaul
             Atmosphere waste = __instance.OutputNetwork2.Atmosphere;
             Atmosphere internalAtmos = __instance.InternalAtmosphere;
             AroFlow.Equalize(input, internalAtmos, float.MaxValue, 0.8f, MatterState.All);
-            float energy = AroFlow.GetEnergyToTarget(internalAtmos, __instance.GoalTemperature);
+            float energy = AroEnergy.GetEnergyToTarget(internalAtmos, __instance.GoalTemperature);
             energy = Mathf.Clamp(energy, -14000f, 14000f);
             float pe = Mathf.Clamp01(Mathf.Min(internalAtmos.PressureGasses / 101.325f, waste.PressureGasses / 101.325f));
             float iwe = Mathf.Min(__instance.InputAndWasteEfficiency.Evaluate(internalAtmos.GasMixture.Temperature), __instance.InputAndWasteEfficiency.Evaluate(waste.GasMixture.Temperature));
             float tde = internalAtmos.Temperature / waste.Temperature;
             tde = (__instance.GoalTemperature > internalAtmos.Temperature) ? 1f / tde : tde; // heating?
             ____powerUsedDuringTick = Mathf.Abs(energy) * AroEnergy.CompressEnergyPowerFactor / Mathf.Max(pe * iwe * tde, 0.000001f);
-            AroFlow.AlterEnergy(waste, -energy);
-            AroFlow.AlterEnergy(internalAtmos, energy);
+            AroEnergy.AlterEnergy(waste, -energy);
+            AroEnergy.AlterEnergy(internalAtmos, energy);
             AroAtmosphereDataController.Instance.AddFlow(waste, 0, -energy);
             AroAtmosphereDataController.Instance.AddFlow(internalAtmos, 0, energy);
             __instance.TemperatureDifferentialEfficiency = tde;
@@ -612,17 +612,115 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
-    [HarmonyPatch(typeof(PassiveVent), nameof(PassiveVent.OnAtmosphericTick))]
-    public class PassiveVentOnAtmosphericTickPatch
+    //[HarmonyPatch(typeof(PassiveVent), nameof(PassiveVent.OnAtmosphericTick))]
+    //public class PassiveVentOnAtmosphericTickPatch
+    //{
+    //    [UsedImplicitly]
+    //    public static bool Prefix(PassiveVent __instance, Atmosphere ____environment)
+    //    {
+    //        if (__instance.HasOpenGrid)
+    //        {
+    //            ____environment = __instance.GridController.AtmosphericsController.CloneGlobalAtmosphere(__instance.WorldGrid);
+    //            AroFlow.BiDirectional(____environment, __instance.PipeNetwork.Atmosphere);
+    //        }
+    //        return false;
+    //    }
+    //}
+    [HarmonyPatch(typeof(HeatExchanger), nameof(HeatExchanger.OnAtmosphericTick))]
+    public class HeatExchangerOnAtmosphericTickPatch
     {
         [UsedImplicitly]
-        public static bool Prefix(PassiveVent __instance, Atmosphere ____environment)
+        public static bool Prefix(HeatExchanger __instance, Atmosphere ___internalAtmosphere2, Atmosphere ___internalAtmosphere3)
         {
-            if (__instance.HasOpenGrid)
+            if (__instance.InputNetwork != null && __instance.InputNetwork2 != null && __instance.OutputNetwork != null && __instance.OutputNetwork2 != null && __instance.InputNetwork.Atmosphere != null && __instance.InputNetwork2.Atmosphere != null)
             {
-                ____environment = __instance.GridController.AtmosphericsController.CloneGlobalAtmosphere(__instance.WorldGrid);
-                AroFlow.BiDirectional(____environment, __instance.PipeNetwork.Atmosphere);
+                AroFlow.BiDirectional(___internalAtmosphere2, __instance.InputNetwork.Atmosphere, eqRate: 0.35f, mixRate: 0.001f, mixThreshold: 0.0005f);
+                AroFlow.BiDirectional(___internalAtmosphere3, __instance.InputNetwork2.Atmosphere, eqRate: 0.35f, mixRate: 0.001f, mixThreshold: 0.0005f);
+                AroFlow.BiDirectional(___internalAtmosphere2, __instance.OutputNetwork.Atmosphere, eqRate: 0.35f, mixRate: 0.001f, mixThreshold: 0.0005f);
+                AroFlow.BiDirectional(___internalAtmosphere3, __instance.OutputNetwork2.Atmosphere, eqRate: 0.35f, mixRate: 0.001f, mixThreshold: 0.0005f);
+                float volume = __instance.Bounds.size.x * __instance.Bounds.size.y * __instance.Bounds.size.z;
+                float convectionHeat = Atmosphere.GetConvectionHeat(___internalAtmosphere2, ___internalAtmosphere3, volume * ___internalAtmosphere2.RatioOneAtmosphereClamped * ___internalAtmosphere3.RatioOneAtmosphereClamped);
+                ___internalAtmosphere2.GasMixture.TransferEnergyTo(ref ___internalAtmosphere3.GasMixture, convectionHeat * AtmosphericsManager.Instance.TickSpeedMs * 1f);
             }
+            return false;
+        }
+    }
+    [HarmonyPatch(typeof(Entity), nameof(Entity.OnLifeTick))]
+    public class EntityOnLifeTickPatch
+    {
+        [UsedImplicitly]
+        public static void Prefix(Entity __instance, ref float ____entityMolePerBreath)
+        {
+            ____entityMolePerBreath = 1.2e-4f;//2.0e-6f; 
+            if (__instance.LungAtmosphere != null)
+            {
+                float volume = __instance.LungAtmosphere.Volume;
+                if (volume > 6.5f)
+                {
+                    if (volume > 6.7f)
+                    {
+                        __instance.LungAtmosphere.Volume = 6.6f;
+                    }
+                    else
+                    {
+                        __instance.LungAtmosphere.Volume = 6f;
+                    }
+                }
+                else
+                {
+                    if (volume < 6.3f)
+                    {
+                        __instance.LungAtmosphere.Volume = 6.4f;
+                    }
+                    else
+                    {
+                        __instance.LungAtmosphere.Volume = 7f;
+                    }
+                }
+                ConsoleWindow.Print("Pp: " + __instance.LungAtmosphere.ParticalPressureO2 + " Pressue: " + __instance.LungAtmosphere.PressureGasses+ " breathAtmosLiter: " + __instance.BreathingAtmosphere.Volume + " breathAtmosO2Ratio: " + __instance.BreathingAtmosphere.GasMixture.GetGasTypeRatio(GasType.Oxygen));
+            }
+        }
+        [UsedImplicitly]
+        public static void Postfix(Entity __instance)
+        {
+            if (__instance.LungAtmosphere != null && __instance.BreathingAtmosphere != null)
+            {
+                //AroFlow.Mix(__instance.LungAtmosphere, __instance.BreathingAtmosphere, 0.5f, MatterState.Gas);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(Atmosphere), nameof(Atmosphere.CalculateThingEntropy))]
+    public class AtmosphereCalculateThingEntropyPatch
+    {
+        [UsedImplicitly]
+        public static void Prefix(Thing thing, ref float scale)
+        {
+            if (thing is PipeRadiator radiator)
+            {
+                scale *= AroEnergy.GetPipeRadiatorScale(radiator.NetworkAtmosphere);
+            }
+        }
+    }
+    [HarmonyPatch(typeof(Atmosphere), nameof(Atmosphere.CalculateThingConvection))]
+    public class AtmosphereCalculateThingConvectionPatch
+    {
+        [UsedImplicitly]
+        public static void Prefix(Thing thing, ref float scale)
+        {
+            if (thing is PipeRadiator radiator)
+            {
+                scale *= AroEnergy.GetPipeRadiatorScale(radiator.NetworkAtmosphere);
+            }
+        }
+    }
+    [HarmonyPatch(typeof(Atmosphere), "RatioOneAtmosphereClamped", MethodType.Getter)]
+    public class AtmosphereRatioOneAtmosphereClampedPatch
+    {
+        [UsedImplicitly]
+        public static bool Prefix(Atmosphere __instance, ref float __result)
+        {
+            __result = AroEnergy.PressureRatioClamped(__instance);
             return false;
         }
     }

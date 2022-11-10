@@ -31,8 +31,9 @@ namespace AtmosphericRealismOverhaul
         {
             aroDataBase.EnergyFlowLastTick = aroDataBase.EnergyThisTick;
             aroDataBase.EnergyThisTick = 0;
-            aroDataBase.MassFlowLastTick = aroDataBase.MassThisTick;
-            aroDataBase.MassThisTick = 0;
+            aroDataBase.MassFlowLastTick = Mathf.Min(aroDataBase.MassInnThisTick, aroDataBase.MassOutThisTick);
+            aroDataBase.MassInnThisTick = 0;
+            aroDataBase.MassOutThisTick = 0;
         }
 
         public void AddFlow(Atmosphere atmosphere, float mass, float energy)
@@ -76,7 +77,14 @@ namespace AtmosphericRealismOverhaul
 
         private void AddFlow(AroDataBase atmosphereData, float mass, float energy)
         {
-            atmosphereData.MassThisTick += Mathf.Abs(mass);
+            if (mass > 0)
+            {
+                atmosphereData.MassInnThisTick += Mathf.Abs(mass);
+            }
+            else
+            {
+                atmosphereData.MassOutThisTick += Mathf.Abs(mass);
+            }
             atmosphereData.EnergyThisTick += energy;
         }
 
@@ -119,7 +127,8 @@ namespace AtmosphericRealismOverhaul
     public class AroDataBase
     {
         public float MassFlowLastTick { get; set; }
-        public float MassThisTick { get; set; }
+        public float MassOutThisTick { get; set; }
+        public float MassInnThisTick { get; set; }
         public float EnergyFlowLastTick { get; set; }
         public float EnergyThisTick { get; set; }
     }
