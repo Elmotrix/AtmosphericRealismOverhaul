@@ -4,6 +4,8 @@ using Assets.Scripts.Atmospherics;
 
 using static Assets.Scripts.Atmospherics.Chemistry;
 using static Assets.Scripts.Atmospherics.Atmosphere;
+using Assets.Scripts.Objects.Pipes;
+using Assets.Scripts;
 
 namespace AtmosphericRealismOverhaul
 {
@@ -176,6 +178,47 @@ namespace AtmosphericRealismOverhaul
             AroAtmosphereDataController.GetInstance().AddFlow(inputAtmos, -n, 0);
             AroAtmosphereDataController.GetInstance().AddFlow(outputAtmos, n, energy);
             return energy;
+        }
+
+        public static bool IsOperable(DeviceInputOutput device)
+        {
+            bool num = device.InputNetwork != null && device.InputNetwork.IsNetworkValid();
+            bool flag = device.OutputNetwork != null && device.OutputNetwork.IsNetworkValid();
+            bool flag2 = num && flag;
+            if (device.Error == 1)
+            {
+                if (!flag2)
+                {
+                    return false;
+                }
+                if (GameManager.RunSimulation)
+                {
+                    OnServer.Interact(device.InteractError, 0);
+                }
+                return true;
+            }
+            if (flag2)
+            {
+                return true;
+            }
+            if (GameManager.RunSimulation)
+            {
+                OnServer.Interact(device.InteractError, 1);
+            }
+            return false;
+        }
+        public static bool IsOperable(DeviceOutput device)
+        {
+            bool flag = device.HasPipeNetwork && device.GridController.CanContainAtmos(device.WorldGrid);
+            if (GameManager.RunSimulation && device.HasErrorState && device.Error == 0 && !flag)
+            {
+                OnServer.Interact(device.InteractError, 1);
+            }
+            else if (GameManager.RunSimulation && device.HasErrorState && device.Error == 1 && flag)
+            {
+                OnServer.Interact(device.InteractError, 0);
+            }
+            return flag;
         }
     }
 }

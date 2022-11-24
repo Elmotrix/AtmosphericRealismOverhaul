@@ -228,7 +228,8 @@ namespace AtmosphericRealismOverhaul
         [UsedImplicitly]
         public static bool Prefix(ActiveVent __instance)
         {
-            if (!__instance.OnOff || !__instance.Powered || !__instance.IsOperable)
+            
+            if (!__instance.OnOff || !__instance.Powered || !AroFlow.IsOperable(__instance))
             {
                 return false;
             }
@@ -240,7 +241,8 @@ namespace AtmosphericRealismOverhaul
                     //move gas from world to pipe (mode=1)
                     if (worldAtmosphere.PressureGassesAndLiquids > __instance.ExternalPressure && pipeAtmosphere.PressureGassesAndLiquids < __instance.InternalPressure)
                     {
-                        AroFlow.ActiveEqualize(worldAtmosphere, pipeAtmosphere, 1000f, AroFlow.atm * 2f, 0.8f, MatterState.All);
+                        float max = Mathf.Min(pipeAtmosphere.Volume, 1000);
+                        AroFlow.ActiveEqualize(worldAtmosphere, pipeAtmosphere, max, AroFlow.atm * 2f, 0.8f, MatterState.All);
                     }
                     break;
                 case VentDirection.Outward:
@@ -322,7 +324,7 @@ namespace AtmosphericRealismOverhaul
         [UsedImplicitly]
         public static bool Prefix(FiltrationMachine __instance)
         {
-            if (!__instance.OnOff || !__instance.Powered || __instance.Mode == 0 || !__instance.IsOperable)
+            if (!__instance.OnOff || !__instance.Powered || __instance.Mode == 0 || !AroFlow.IsOperable(__instance))
             {
                 return false;
             }
@@ -402,7 +404,7 @@ namespace AtmosphericRealismOverhaul
             {
                 ____ticksOver = 0;
             }
-            if (__instance.InputNetwork == null || __instance.OutputNetwork == null || !__instance.IsOperable || !__instance.OnOff)
+            if (__instance.InputNetwork == null || __instance.OutputNetwork == null || !AroFlow.IsOperable(__instance) || !__instance.OnOff)
             {
                 ____ticksOver = 0;
                 ____energyAsPower = 0f;
@@ -502,7 +504,7 @@ namespace AtmosphericRealismOverhaul
         [UsedImplicitly]
         public static bool Prefix(H2CombustorMachine __instance)
         {
-            if (!__instance.OnOff || !__instance.Powered || !__instance.IsOperable || __instance.Mode != 1)
+            if (!__instance.OnOff || !__instance.Powered || !AroFlow.IsOperable(__instance) || __instance.Mode != 1)
             {
                 if (__instance.Activate == 1)
                 {
@@ -723,7 +725,7 @@ namespace AtmosphericRealismOverhaul
                 AroFlow.BiDirectional(___internalAtmosphere3, __instance.InputNetwork2.Atmosphere, eqRate: 0.35f, mixRate: 0.0015f, mixThreshold: 0.0005f);
                 AroFlow.BiDirectional(___internalAtmosphere2, __instance.OutputNetwork.Atmosphere, eqRate: 0.35f, mixRate: 0.0015f, mixThreshold: 0.0005f);
                 AroFlow.BiDirectional(___internalAtmosphere3, __instance.OutputNetwork2.Atmosphere, eqRate: 0.35f, mixRate: 0.0015f, mixThreshold: 0.0005f);
-                float volume = __instance.Bounds.size.x * __instance.Bounds.size.y * __instance.Bounds.size.z * 10f;
+                float volume = __instance.Bounds.size.x * __instance.Bounds.size.y * __instance.Bounds.size.z * 20f;
                 float convectionHeat = Atmosphere.GetConvectionHeat(___internalAtmosphere2, ___internalAtmosphere3, volume * ___internalAtmosphere2.RatioOneAtmosphereClamped * ___internalAtmosphere3.RatioOneAtmosphereClamped);
                 ___internalAtmosphere2.GasMixture.TransferEnergyTo(ref ___internalAtmosphere3.GasMixture, convectionHeat * AtmosphericsManager.Instance.TickSpeedMs * 1f);
             }
