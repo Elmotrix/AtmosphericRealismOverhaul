@@ -182,41 +182,23 @@ namespace AtmosphericRealismOverhaul
 
         public static bool IsOperable(DeviceInputOutput device)
         {
-            bool num = device.InputNetwork != null && device.InputNetwork.IsNetworkValid();
-            bool flag = device.OutputNetwork != null && device.OutputNetwork.IsNetworkValid();
-            bool flag2 = num && flag;
-            if (device.Error == 1)
+            bool flag = device.InputNetwork != null && device.OutputNetwork != null;
+            if (flag)
             {
-                if (!flag2)
-                {
-                    return false;
-                }
-                if (GameManager.RunSimulation)
-                {
-                    OnServer.Interact(device.InteractError, 0);
-                }
-                return true;
-            }
-            if (flag2)
-            {
-                return true;
+                flag = flag && device.InputNetwork.IsNetworkValid() && device.OutputNetwork.IsNetworkValid();
             }
             if (GameManager.RunSimulation)
             {
-                OnServer.Interact(device.InteractError, 1);
+                OnServer.Interact(device.InteractError, Convert.ToInt32(!flag));
             }
-            return false;
+            return flag;
         }
         public static bool IsOperable(DeviceOutput device)
         {
             bool flag = device.HasPipeNetwork && device.GridController.CanContainAtmos(device.WorldGrid);
-            if (GameManager.RunSimulation && device.HasErrorState && device.Error == 0 && !flag)
+            if (GameManager.RunSimulation)
             {
-                OnServer.Interact(device.InteractError, 1);
-            }
-            else if (GameManager.RunSimulation && device.HasErrorState && device.Error == 1 && flag)
-            {
-                OnServer.Interact(device.InteractError, 0);
+                OnServer.Interact(device.InteractError, Convert.ToInt32(!flag));
             }
             return flag;
         }

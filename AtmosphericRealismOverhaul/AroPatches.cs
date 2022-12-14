@@ -17,6 +17,7 @@ using Assets.Scripts.Objects;
 using JetBrains.Annotations;
 using Assets.Scripts;
 using static Assets.Scripts.Atmospherics.Atmosphere;
+using Assets.Scripts.GridSystem;
 
 namespace AtmosphericRealismOverhaul
 {
@@ -810,4 +811,74 @@ namespace AtmosphericRealismOverhaul
             return false;
         }
     }
+
+    //[HarmonyPatch(typeof(PipeNetwork), nameof(PipeNetwork.Add), new Type[] { typeof(Pipe) })]
+    //public class PipeNetworkAddPatch
+    //{
+    //    [UsedImplicitly]
+    //    public static void Prefix(PipeNetwork __instance, Pipe pipe)
+    //    {
+    //        if (GameManager.GameState != GameState.Running && GameManager.RunSimulation)
+    //        {
+    //            return;
+    //        }
+    //        if (__instance.PipeList.Count > 1)
+    //        {
+    //            float energy = AroEnergy.CalcEnergyGasCompression(__instance.Atmosphere.Volume, __instance.Atmosphere.Volume + pipe.Volume, __instance.Atmosphere.TotalMoles);
+    //            AroEnergy.AlterEnergy(__instance.Atmosphere, energy);
+    //        }
+    //    }
+    //}
+    //[HarmonyPatch(typeof(PipeNetwork), nameof(PipeNetwork.Remove))]
+    //public class PipeNetworkRemovePatch
+    //{
+    //    [UsedImplicitly]
+    //    public static void Prefix(PipeNetwork __instance, Pipe pipe)
+    //    {
+    //        if (GameManager.GameState != GameState.Running && GameManager.RunSimulation)
+    //        {
+    //            return;
+    //        }
+    //        if (__instance.PipeList.Count > 1)
+    //        {
+    //            float energy = AroEnergy.CalcEnergyGasCompression(__instance.Atmosphere.Volume, __instance.Atmosphere.Volume - pipe.Volume, __instance.Atmosphere.TotalMoles);
+    //            AroEnergy.AlterEnergy(__instance.Atmosphere, energy);
+    //        }
+    //        else if (__instance.PipeList.Count == 1)
+    //        {
+    //            Atmosphere worldAtmosphere = pipe.GridController.AtmosphericsController.GetAtmosphereLocal(pipe.WorldGrid);
+    //            if (worldAtmosphere != null)
+    //            {
+    //                AroFlow.MoveMassEnergy(__instance.Atmosphere, worldAtmosphere, __instance.Atmosphere.TotalMoles,MatterState.All);
+    //            }
+    //        }
+    //    }
+    //}
+    //[HarmonyPatch(typeof(DeviceInternal), nameof(DeviceInternal.OnDestroy))]
+    //public class DeviceInternalOnDestroyPatch
+    //{
+    //    [UsedImplicitly]
+    //    public static void Prefix(DeviceInternal __instance)
+    //    {
+    //        if (GameManager.GameState != GameState.Running && GameManager.RunSimulation)
+    //        {
+    //            return;
+    //        }
+    //        if (__instance.ConnectedPipeNetwork == null)
+    //        {
+    //            Atmosphere worldAtmosphere = __instance.GridController.AtmosphericsController.GetAtmosphereLocal(__instance.WorldGrid);
+    //            if (worldAtmosphere != null)
+    //            {
+    //                AroFlow.MoveMassEnergy(__instance.InternalAtmosphere, worldAtmosphere, __instance.InternalAtmosphere.TotalMoles, MatterState.All);
+    //            }
+    //        }
+    //        else
+    //        {
+    //            if (__instance.ConnectedPipeNetwork.Atmosphere != null)
+    //            {
+    //                AroFlow.MoveMassEnergy(__instance.InternalAtmosphere, __instance.ConnectedPipeNetwork.Atmosphere, __instance.InternalAtmosphere.TotalMoles, MatterState.All);
+    //            }
+    //        }
+    //    }
+    //}
 }
