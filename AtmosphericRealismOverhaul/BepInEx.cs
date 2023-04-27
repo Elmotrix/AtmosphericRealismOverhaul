@@ -10,7 +10,7 @@ namespace AtmosphericRealismOverhaul
     {
         public const string pluginGuid = "net.elmo.stationeers.AtmosphericRealismOverhaul";
         public const string pluginName = "AtmosphericRealismOverhaul";
-        public const string pluginVersion = "0.15";
+        public const string pluginVersion = "0.142";
         public static void Log(string line)
         {
             Debug.Log("[" + pluginName + "]: " + line);
