@@ -344,7 +344,23 @@ namespace AtmosphericRealismOverhaul
                     {
                         noFilter = false;
                         Mole mole = AroFlow.MoveMassEnergy(inputAtmos1, outputAtmos1, n1 * ratio, type);
-                        gasFilter.Quantity -= 0.5f * mole.Quantity / (int)gasFilter.TicksBeforeDegrade;
+                        float degrade = 0;
+                        switch (gasFilter.FilterLife)
+                        {
+                            case GasFilterLife.Normal:
+                                degrade = 0.5f / 144;
+                                break;
+                            case GasFilterLife.Medium:
+                                degrade = 0.5f / (144*5);
+                                break;
+                            case GasFilterLife.Large:
+                                degrade = 0.5f / (144 * 20);
+                                break;
+                            case GasFilterLife.Infinite:
+                            default:
+                                break;
+                        }
+                        gasFilter.Quantity -= mole.Quantity * degrade;
                         break;
                     }
                 }

@@ -64,6 +64,7 @@
     <Compile Include="AroFlow.cs" />
     <Compile Include="AroPatches.cs" />
     <Compile Include="AroAtmosData.cs" />
+    <Compile Include="AtmosphereExtraSaveData.cs" />
     <Compile Include="BepInEx.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

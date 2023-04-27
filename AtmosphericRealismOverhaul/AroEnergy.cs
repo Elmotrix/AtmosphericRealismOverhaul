@@ -7,6 +7,7 @@ namespace AtmosphericRealismOverhaul
     public class AroEnergy
     {
         public const float CompressEnergyPowerFactor = 0.1f;
+        public const float EnergyOffset = 0.05f;
         public static float CalcEnergyGasCompression(Atmosphere inputAtmos, Atmosphere outputAtmos, float n)
         {
             if (n <= 0f)
@@ -15,6 +16,14 @@ namespace AtmosphericRealismOverhaul
             }
             float Ratio = Mathf.Max(5, outputAtmos.PressureGassesAndLiquids) / Mathf.Max(5, inputAtmos.PressureGassesAndLiquids);
             float energy = n * 350f * Mathf.Log(Ratio);
+            if (energy < 0)
+            {
+                energy = energy * (1 - EnergyOffset);
+            }
+            else
+            {
+                energy = energy * (1 + EnergyOffset);
+            }
             return energy;
         }
         public static float CalcEnergyGasCompression(float oldVolume, float newVolume, float n)
