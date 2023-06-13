@@ -47,7 +47,7 @@ namespace AtmosphericRealismOverhaul
                 default:
                     break;
             }
-            AroFlow.Equalize(__instance.InputNetwork.Atmosphere, __instance.OutputNetwork.Atmosphere, dp, 0.8f, MatterState.All);
+            AroFlow.Equalize(__instance.InputNetwork.Atmosphere, __instance.OutputNetwork.Atmosphere, dp, 0.8f, Atmosphere.MatterState.All);
             return false;
         }
     }
@@ -88,7 +88,7 @@ namespace AtmosphericRealismOverhaul
                 __instance.UsedPower = 10f;
                 return false;
             }
-            float energy = AroFlow.CompressVolume(inputAtmosphere, outputAtmosphere, setting, MatterState.All);
+            float energy = AroFlow.CompressVolume(inputAtmosphere, outputAtmosphere, setting, Atmosphere.MatterState.All);
             energy = Mathf.Max(energy, setting) * AroEnergy.CompressEnergyPowerFactor;
             __instance.UsedPower = energy + 10f;
             return false;
@@ -128,17 +128,17 @@ namespace AtmosphericRealismOverhaul
             {
                 if (__instance.InputNetwork != null)
                 {
-                    num = AroFlow.CompressVolume(__instance.InputNetwork.Atmosphere, __instance.InternalAtmosphere, __instance.OutputSetting2, MatterState.Gas);
+                    num = AroFlow.CompressVolume(__instance.InputNetwork.Atmosphere, __instance.InternalAtmosphere, __instance.OutputSetting2, Atmosphere.MatterState.Gas);
                     energy += Mathf.Max(num, __instance.OutputSetting2);
                 }
                 if (__instance.OutputNetwork != null)
                 {
-                    num = AroFlow.CompressVolume(__instance.InternalAtmosphere, __instance.OutputNetwork.Atmosphere, __instance.OutputSetting, MatterState.Gas);
+                    num = AroFlow.CompressVolume(__instance.InternalAtmosphere, __instance.OutputNetwork.Atmosphere, __instance.OutputSetting, Atmosphere.MatterState.Gas);
                     energy += Mathf.Max(num, __instance.OutputSetting);
                 }
                 if (__instance.OutputNetwork2 != null)
                 {
-                    num = AroFlow.CompressVolume(__instance.InternalAtmosphere, __instance.OutputNetwork2.Atmosphere, __instance.OutputSetting, MatterState.Liquid);
+                    num = AroFlow.CompressVolume(__instance.InternalAtmosphere, __instance.OutputNetwork2.Atmosphere, __instance.OutputSetting, Atmosphere.MatterState.Liquid);
                     energy += Mathf.Max(num, __instance.OutputSetting);
                 }
             }
@@ -243,14 +243,14 @@ namespace AtmosphericRealismOverhaul
                     if (worldAtmosphere.PressureGassesAndLiquids > __instance.ExternalPressure && pipeAtmosphere.PressureGassesAndLiquids < __instance.InternalPressure)
                     {
                         float max = Mathf.Min(pipeAtmosphere.Volume, 1000);
-                        AroFlow.ActiveEqualize(worldAtmosphere, pipeAtmosphere, max, AroFlow.atm * 2f, 0.8f, MatterState.All);
+                        AroFlow.ActiveEqualize(worldAtmosphere, pipeAtmosphere, max, AroFlow.atm * 2f, 0.8f, Atmosphere.MatterState.All);
                     }
                     break;
                 case VentDirection.Outward:
                     //move gas from pipe to world (mode=0)
                     if (worldAtmosphere.PressureGassesAndLiquids < __instance.ExternalPressure && pipeAtmosphere.PressureGassesAndLiquids > __instance.InternalPressure)
                     {
-                        AroFlow.ActiveEqualize(pipeAtmosphere, worldAtmosphere, 200f, AroFlow.atm * 2f, 0.6f, MatterState.All);
+                        AroFlow.ActiveEqualize(pipeAtmosphere, worldAtmosphere, 200f, AroFlow.atm * 2f, 0.6f, Atmosphere.MatterState.All);
                     }
                     break;
                 default:
@@ -302,19 +302,19 @@ namespace AtmosphericRealismOverhaul
             float Ratio1 = __instance.Ratio1 / 100f;
             float Ratio2 = __instance.Ratio2 / 100f;
             float mixRate = Mathf.Max(Ratio1, Ratio2) * 0.2f;
-            float n1 = AroFlow.GetEqualizeMole(inputAtmos1, outputAtmos, float.MaxValue, mixRate, MatterState.All);
-            float n2 = AroFlow.GetEqualizeMole(inputAtmos2, outputAtmos, float.MaxValue, mixRate, MatterState.All);
+            float n1 = AroFlow.GetEqualizeMole(inputAtmos1, outputAtmos, float.MaxValue, mixRate, Atmosphere.MatterState.All);
+            float n2 = AroFlow.GetEqualizeMole(inputAtmos2, outputAtmos, float.MaxValue, mixRate, Atmosphere.MatterState.All);
             if (n1 * Ratio2 < n2 * Ratio1)
             {
                 n2 = n1 * Ratio2 / Ratio1;
-                AroFlow.MoveMassEnergy(inputAtmos1, outputAtmos, n1, MatterState.All);
-                AroFlow.MoveMassEnergy(inputAtmos2, outputAtmos, n2, MatterState.All);
+                AroFlow.MoveMassEnergy(inputAtmos1, outputAtmos, n1, Atmosphere.MatterState.All);
+                AroFlow.MoveMassEnergy(inputAtmos2, outputAtmos, n2, Atmosphere.MatterState.All);
             }
             else
             {
                 n1 = n2 * Ratio1 / Ratio2;
-                AroFlow.MoveMassEnergy(inputAtmos2, outputAtmos, n2, MatterState.All);
-                AroFlow.MoveMassEnergy(inputAtmos1, outputAtmos, n1, MatterState.All);
+                AroFlow.MoveMassEnergy(inputAtmos2, outputAtmos, n2, Atmosphere.MatterState.All);
+                AroFlow.MoveMassEnergy(inputAtmos1, outputAtmos, n1, Atmosphere.MatterState.All);
             }
             return false;
         }
@@ -332,8 +332,8 @@ namespace AtmosphericRealismOverhaul
             Atmosphere inputAtmos1 = __instance.InputNetwork.Atmosphere;
             Atmosphere outputAtmos1 = __instance.OutputNetwork.Atmosphere;
             Atmosphere outputAtmos2 = __instance.OutputNetwork2.Atmosphere;
-            float n1 = AroFlow.GetEqualizeMole(inputAtmos1, outputAtmos1, float.MaxValue, 0.4f, MatterState.All);
-            float n2 = AroFlow.GetEqualizeMole(inputAtmos1, outputAtmos2, float.MaxValue, 0.4f, MatterState.All);
+            float n1 = AroFlow.GetEqualizeMole(inputAtmos1, outputAtmos1, float.MaxValue, 0.4f, Atmosphere.MatterState.All);
+            float n2 = AroFlow.GetEqualizeMole(inputAtmos1, outputAtmos2, float.MaxValue, 0.4f, Atmosphere.MatterState.All);
             foreach (GasType type in AroFlow.gasTypes)
             {
                 bool noFilter = true;
@@ -439,7 +439,7 @@ namespace AtmosphericRealismOverhaul
                 return false;
             }
 
-            AroFlow.CompressVolume(inputAtmos, InternalAtmosphere, InternalAtmosphere.Volume, MatterState.Gas);
+            AroFlow.CompressVolume(inputAtmos, InternalAtmosphere, InternalAtmosphere.Volume, Atmosphere.MatterState.Gas);
 
             InternalAtmosphere.Sparked = true;
             InternalAtmosphere.ManualCombust(0.9f);
@@ -496,14 +496,14 @@ namespace AtmosphericRealismOverhaul
             Atmosphere output = __instance.OutputNetwork.Atmosphere;
             Atmosphere waste = __instance.OutputNetwork2.Atmosphere;
             Atmosphere internalAtmos = __instance.InternalAtmosphere;
-            AroFlow.Equalize(input, internalAtmos, float.MaxValue, 0.8f, MatterState.All);
+            AroFlow.Equalize(input, internalAtmos, float.MaxValue, 0.8f, Atmosphere.MatterState.All);
             float energy = AroEnergy.GetEnergyToTarget(internalAtmos, __instance.GoalTemperature);
-            energy = Mathf.Clamp(energy, -14000f, 14000f);
             float pe = Mathf.Clamp01(Mathf.Min(internalAtmos.PressureGasses / 101.325f, waste.PressureGasses / 101.325f));
             float iwe = Mathf.Min(__instance.InputAndWasteEfficiency.Evaluate(internalAtmos.GasMixture.Temperature), __instance.InputAndWasteEfficiency.Evaluate(waste.GasMixture.Temperature));
             float tde = internalAtmos.Temperature / waste.Temperature;
             tde = (__instance.GoalTemperature > internalAtmos.Temperature) ? 1f / tde : tde; // heating?
-            ____powerUsedDuringTick = Mathf.Abs(energy) * AroEnergy.CompressEnergyPowerFactor / Mathf.Max(pe * iwe * tde, 0.000001f);
+            energy = Mathf.Clamp(energy, -14000f * pe * iwe * tde, 14000f * pe * iwe * tde);
+            ____powerUsedDuringTick = Mathf.Abs(energy) * AroEnergy.CompressEnergyPowerFactor; // / Mathf.Max(pe * iwe * tde, 0.000001f);
             AroEnergy.AlterEnergy(waste, -energy);
             AroEnergy.AlterEnergy(internalAtmos, energy);
             AroAtmosphereDataController.GetInstance().AddFlow(waste, 0, -energy);
@@ -511,7 +511,7 @@ namespace AtmosphericRealismOverhaul
             __instance.TemperatureDifferentialEfficiency = tde;
             __instance.OperationalTemperatureLimitor = iwe;
             __instance.OptimalPressureScalar = pe;
-            AroFlow.Equalize(internalAtmos, output, float.MaxValue, 0.8f, MatterState.All);
+            AroFlow.Equalize(internalAtmos, output, float.MaxValue, 0.8f, Atmosphere.MatterState.All);
             return false;
         }
     }
@@ -533,18 +533,18 @@ namespace AtmosphericRealismOverhaul
             Atmosphere output = __instance.OutputNetwork.Atmosphere;
             Atmosphere internalAtmos = __instance.InternalAtmosphere;
 
-            AroFlow.Equalize(input, internalAtmos, float.MaxValue, 0.6f, MatterState.All);
+            AroFlow.Equalize(input, internalAtmos, float.MaxValue, 0.6f, Atmosphere.MatterState.All);
             if (__instance.Activate == 1)
             {
                 OnServer.Interact(__instance.InteractActivate, 0);
             }
             internalAtmos.CombustForWater(H2CombustorMachine.WaterRatio);
             internalAtmos.ManualCombust(0.9f);
-            AroFlow.Equalize(internalAtmos, output, float.MaxValue, 0.2f, MatterState.Liquid);
+            AroFlow.Equalize(internalAtmos, output, float.MaxValue, 0.2f, Atmosphere.MatterState.Liquid);
             if (__instance.OutputNetwork2 != null)
             {
                 Atmosphere waste = __instance.OutputNetwork2.Atmosphere;
-                AroFlow.Equalize(internalAtmos, waste, float.MaxValue, 0.6f, MatterState.Gas);
+                AroFlow.Equalize(internalAtmos, waste, float.MaxValue, 0.6f, Atmosphere.MatterState.Gas);
             }
             return false;
         }

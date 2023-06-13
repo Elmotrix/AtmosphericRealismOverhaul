@@ -49,7 +49,7 @@ namespace AtmosphericRealismOverhaul
             }
             return Math.Round(value, deci) + valueUnit;
         }
-        public static float BiDirectional(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove=float.MaxValue, float eqRate=1f, float mixRate=0.07f, float mixThreshold = 0.01f, MatterState typeToMove = MatterState.All)
+        public static float BiDirectional(Atmosphere inputAtmos, Atmosphere outputAtmos, float amountPressureToMove=float.MaxValue, float eqRate=1f, float mixRate=0.07f, float mixThreshold = 0.01f, MatterState typeToMove = Atmosphere.MatterState.All)
         {
             if (inputAtmos == null || outputAtmos == null)
             {
